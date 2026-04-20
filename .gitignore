@@ -154,3 +154,5 @@ yarn-error.log*
 # Package lock files (Python)
 poetry.lock
 
+days/
+external/
