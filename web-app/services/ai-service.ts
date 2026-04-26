@@ -1,46 +1,18 @@
 import { BaseService, ServiceResponse } from './base-service'
+import type {
+  AskRequest,
+  AskResponse,
+  IngestResponse,
+} from '../types'
+import { isAskResponse, isIngestResponse } from '../lib/type-guards'
 
-// ============================================================
-// RESPONSE TYPES
-// ============================================================
-
-export interface AskResponse {
-  answer: string
-  sources: Array<{
-    content: string
-    score: number
-    metadata: Record<string, unknown>
-  }>
-  latencyBreakdown: {
-    retrievalMs: number
-    generationMs: number
-    totalMs: number
-  }
-  traceId: string
-}
-
-export interface IngestResponse {
-  status: string
-  chunkCount: number
-  error?: string
-}
-
-export interface RetrieveResponse {
+// RetrieveResponse stays local — not yet in types/ (added in a later block)
+interface RetrieveResponse {
   chunks: Array<{
     content: string
     score: number
     metadata: Record<string, unknown>
   }>
-}
-
-// ============================================================
-// REQUEST TYPES
-// ============================================================
-
-export interface AskRequest {
-  query: string
-  history?: Array<{ role: string; content: string }>
-  signal?: AbortSignal
 }
 
 export interface IngestRequest {
@@ -54,15 +26,10 @@ export interface RetrieveRequest {
   strategy?: string
 }
 
-// ============================================================
-// AI SERVICE
-// ============================================================
-
 export class AIService extends BaseService {
   constructor() {
     const baseUrl =
-      (globalThis as { process?: { env?: Record<string, string | undefined> } })
-        .process?.env?.NEXT_PUBLIC_AI_BACKEND_URL ?? 'http://localhost:8000'
+      process.env.NEXT_PUBLIC_AI_BACKEND_URL ?? 'http://localhost:8000'
 
     super(baseUrl, {
       'Content-Type': 'application/json',
@@ -70,61 +37,88 @@ export class AIService extends BaseService {
     })
   }
 
-  // ============================================================
-  // ask — POST /ask
-  // Each question is unique — deduplication disabled
-  // Passes AbortSignal through for streaming cancellation later
-  // ============================================================
   async ask({
     query,
     history = [],
     signal,
   }: AskRequest): Promise<ServiceResponse<AskResponse>> {
-    return this.request<AskResponse>('/ask', {
+    // Type as unknown — validate shape before trusting it
+    const response = await this.request<unknown>('/ask', {
       method: 'POST',
       body: { query, history },
       signal,
-      deduplicate: false, // every ask is a distinct user intent
-      timeoutMs: 30_000,  // LLM responses can be slow
-      maxAttempts: 2,     // don't retry too aggressively on LLM calls
+      deduplicate: false,
+      timeoutMs: 30_000,
+      maxAttempts: 2,
     })
+
+    if (response.error) {
+      return response as ServiceResponse<AskResponse>
+    }
+
+    // Validate shape — AI backend could return anything
+    if (!isAskResponse(response.data)) {
+      return {
+        data: null,
+        error: {
+          name: 'ServiceError',
+          code: 'PARSE_ERROR',
+          message: 'AI backend returned unexpected response shape',
+          retryable: false,
+          originalError: response.data,
+        } as any,
+        status: response.status,
+        latencyMs: response.latencyMs,
+      }
+    }
+
+    return { ...response, data: response.data }
   }
 
-  // ============================================================
-  // ingest — POST /ingest
-  // Sends file as FormData — not JSON
-  // BaseService detects FormData and skips JSON.stringify
-  // Browser automatically sets multipart/form-data + boundary
-  // ============================================================
   async ingest({
     file,
     signal,
   }: IngestRequest): Promise<ServiceResponse<IngestResponse>> {
     const formData = new FormData()
     formData.append('file', file)
-    // Optionally attach filename as metadata
     formData.append('filename', file.name)
 
-    return this.request<IngestResponse>('/ingest', {
+    const response = await this.request<unknown>('/ingest', {
       method: 'POST',
-      body: formData,   // BaseService handles FormData specially
+      body: formData,
       signal,
       deduplicate: false,
-      timeoutMs: 60_000,  // large files take time
+      timeoutMs: 60_000,
       maxAttempts: 2,
     })
+
+    if (response.error) {
+      return response as ServiceResponse<IngestResponse>
+    }
+
+    if (!isIngestResponse(response.data)) {
+      return {
+        data: null,
+        error: {
+          name: 'ServiceError',
+          code: 'PARSE_ERROR',
+          message: 'Unexpected ingest response shape',
+          retryable: false,
+          originalError: response.data,
+        } as any,
+        status: response.status,
+        latencyMs: response.latencyMs,
+      }
+    }
+
+    return { ...response, data: response.data }
   }
 
-  // ============================================================
-  // retrieve — GET /retrieve?query=...&top_k=...&strategy=...
-  // Deduplication enabled — typing fast should not fire N requests
-  // ============================================================
   async retrieve({
     query,
     top_k = 5,
     strategy = 'semantic',
   }: RetrieveRequest): Promise<ServiceResponse<RetrieveResponse>> {
-    // Build query string — URLSearchParams handles encoding
     const params = new URLSearchParams({
       query,
       top_k: String(top_k),
@@ -133,12 +127,11 @@ export class AIService extends BaseService {
 
     return this.request<RetrieveResponse>(`/retrieve?${params.toString()}`, {
       method: 'GET',
-      deduplicate: true,  // same query fired twice = one request
+      deduplicate: true,
       timeoutMs: 10_000,
       maxAttempts: 3,
     })
   }
 }
 
-// Singleton — one instance shared across the app
 export const aiService = new AIService()

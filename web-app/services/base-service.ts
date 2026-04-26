@@ -4,6 +4,7 @@ import {
   CancellationError,
   RetryExhaustedError,
 } from '../lib/async'
+import type { ApiError } from '../types'
 
 // ============================================================
 // TYPES
