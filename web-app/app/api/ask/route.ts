@@ -9,79 +9,96 @@ import {
   withValidation,
 } from '@/lib/middleware'
 import { RequestContext } from '@/lib/middleware/types'
+import { queriesRepository } from '@/db'
 import { aiService } from '@/services/ai-service'
 
-// Zod schema — defines exactly what the request body must look like
-const AskSchema = z.object({
+const CreateQuerySchema = z.object({
   query: z.string().min(1, 'Query is required'),
-  top_k: z.number().int().positive().optional().default(5),
-  history: z.array(
-    z.object({
-      role: z.enum(['user', 'assistant']),
-      content: z.string(),
-    })
-  ).optional().default([]),
+  documentId: z.string().uuid().optional(),
 })
 
-// Route handler — only runs if all middleware pass
-// context.parsedBody is already typed and validated by withValidation
-async function askHandler(
+async function listHandler(
   req: NextRequest,
   context: RequestContext
 ): Promise<NextResponse> {
-  const body = context.parsedBody as z.infer<typeof AskSchema>
+  const { searchParams } = req.nextUrl
+  const documentId = searchParams.get('documentId')
 
-  // Forward requestId to AI backend for end-to-end tracing
-  const controller = new AbortController()
+  const results = documentId
+    ? await queriesRepository.findByDocument(documentId)
+    : await queriesRepository.findByUser(context.userId!)
 
-  const response = await aiService.ask({
-    query: body.query,
-    history: body.history,
-    signal: controller.signal,
+  return NextResponse.json({ data: results, requestId: context.requestId })
+}
+
+async function createHandler(
+  req: NextRequest,
+  context: RequestContext
+): Promise<NextResponse> {
+  const body = context.parsedBody as z.infer<typeof CreateQuerySchema>
+
+  // Create query record immediately — captures the question before AI runs
+  // This way we have a record even if AI fails
+  const queryRecord = await queriesRepository.create({
+    userId: context.userId!,
+    queryText: body.query,
+    documentId: body.documentId ?? null,
   })
 
-  if (response.error) {
+  // Call AI backend
+  const aiResponse = await aiService.ask({
+    query: body.query,
+    history: [],
+  })
+
+  if (aiResponse.error) {
+    // AI failed — update record to reflect failure, return 502
+    // Query record is preserved with empty answer for audit trail
+    await queriesRepository.updateAnswer(
+      queryRecord.id,
+      '',
+      0,
+      { error: aiResponse.error.code }
+    )
+
     return NextResponse.json(
       {
-        error: response.error.code,
-        message: response.error.message,
+        error: 'AI_BACKEND_ERROR',
+        message: 'AI service failed to generate a response',
         requestId: context.requestId,
         timestamp: new Date().toISOString(),
       },
-      { status: response.status ?? 500 }
+      { status: 502 }
     )
   }
 
+  // Update record with answer
+  const updated = await queriesRepository.updateAnswer(
+    queryRecord.id,
+    aiResponse.data!.answer,
+    aiResponse.latencyMs,
+    { sources: aiResponse.data!.sources }
+  )
+
   return NextResponse.json(
-    {
-      data: response.data,
-      requestId: context.requestId,
-      latencyMs: response.latencyMs,
-    },
-    { status: 200 }
+    { data: updated, requestId: context.requestId },
+    { status: 201 }
   )
 }
 
-// Compose the full middleware chain
-// withErrorHandler outermost — catches everything
-// withRequestId second — ID must exist before logging
-// withLogging third — wraps handler to capture final status
-// withAuth fourth — protects business logic
-// withValidation last before handler — body parsed once here
-const composedHandler = compose(
-  withErrorHandler,
-  withRequestId,
-  withLogging,
-  withAuth({ required: true }),
-  withValidation(AskSchema)
-)(askHandler)
+const getHandler = compose(
+  withErrorHandler, withRequestId, withLogging, withAuth({ required: true })
+)(listHandler)
 
-// Next.js App Router expects named exports per HTTP method
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  // Initialize context — withRequestId and withLogging will populate it
-  const context: RequestContext = {
-    requestId: '',
-    startTime: 0,
-  }
-  return composedHandler(req, context)
+const postHandler = compose(
+  withErrorHandler, withRequestId, withLogging,
+  withAuth({ required: true }),
+  withValidation(CreateQuerySchema)
+)(createHandler)
+
+export async function GET(req: NextRequest) {
+  return getHandler(req, { requestId: '', startTime: 0 })
+}
+export async function POST(req: NextRequest) {
+  return postHandler(req, { requestId: '', startTime: 0 })
 }

@@ -9,93 +9,67 @@ import {
   withValidation,
 } from '@/lib/middleware'
 import { RequestContext } from '@/lib/middleware/types'
-import { aiService } from '@/services/ai-service'
+import { documentsRepository } from '@/db'
 
-// Schema for document upload body
-const IngestSchema = z.object({
+const CreateDocumentSchema = z.object({
   filename: z.string().min(1, 'Filename is required'),
 })
 
-// GET — list documents, auth required, no body validation
-async function listDocumentsHandler(
+// GET — list all documents for authenticated user
+async function listHandler(
   req: NextRequest,
   context: RequestContext
 ): Promise<NextResponse> {
-  // Stub — real implementation queries document store
-  return NextResponse.json({
-    data: [],
-    requestId: context.requestId,
-    userId: context.userId,
-  })
+  const docs = await documentsRepository.findByUser(context.userId!)
+
+  // Always 200 with array — empty array is not a 404
+  return NextResponse.json({ data: docs, requestId: context.requestId })
 }
 
-// POST — ingest document, auth required, body validated
-async function ingestDocumentHandler(
+// POST — create document record before ingestion
+async function createHandler(
   req: NextRequest,
   context: RequestContext
 ): Promise<NextResponse> {
-  // FormData is handled differently — not JSON
-  // withValidation handles JSON body — for file upload we read FormData directly
-  const formData = await req.formData()
-  const file = formData.get('file')
+  const body = context.parsedBody as z.infer<typeof CreateDocumentSchema>
 
-  if (!file || !(file instanceof File)) {
-    return NextResponse.json(
-      {
-        error: 'VALIDATION_ERROR',
-        message: 'File is required',
-        requestId: context.requestId,
-        timestamp: new Date().toISOString(),
-      },
-      { status: 422 }
-    )
-  }
-
-  const response = await aiService.ingest({ file })
-
-  if (response.error) {
-    return NextResponse.json(
-      {
-        error: response.error.code,
-        message: response.error.message,
-        requestId: context.requestId,
-        timestamp: new Date().toISOString(),
-      },
-      { status: response.status ?? 500 }
-    )
-  }
+  const document = await documentsRepository.create({
+    userId: context.userId!,
+    filename: body.filename,
+    // status and chunkCount use schema defaults: 'pending' and 0
+  })
 
   return NextResponse.json(
+    { data: document, requestId: context.requestId },
     {
-      data: response.data,
-      requestId: context.requestId,
-    },
-    { status: 201 }
+      status: 201,
+      headers: {
+        // Location header tells client where to find the created resource
+        Location: `/api/documents/${document.id}`,
+      },
+    }
   )
 }
 
-// GET — no validation middleware needed, no body to parse
 const getHandler = compose(
   withErrorHandler,
   withRequestId,
   withLogging,
   withAuth({ required: true })
-)(listDocumentsHandler)
+)(listHandler)
 
-// POST — file upload handled in handler directly, not via withValidation
 const postHandler = compose(
   withErrorHandler,
   withRequestId,
   withLogging,
-  withAuth({ required: true })
-)(ingestDocumentHandler)
+  withAuth({ required: true }),
+  withValidation(CreateDocumentSchema)
+)(createHandler)
 
-export async function GET(req: NextRequest): Promise<NextResponse> {
-  const context: RequestContext = { requestId: '', startTime: 0 }
-  return getHandler(req, context)
+export async function GET(req: NextRequest) {
+  return getHandler(req, { requestId: '', startTime: 0 })
 }
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  const context: RequestContext = { requestId: '', startTime: 0 }
-  return postHandler(req, context)
+export async function POST(req: NextRequest) {
+  return postHandler(req, { requestId: '', startTime: 0 })
 }
