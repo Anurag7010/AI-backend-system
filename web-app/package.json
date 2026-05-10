@@ -3,6 +3,8 @@
     "name": "web-app",
     "version": "0.1.0",
     "devDependencies": {
+        "@tailwindcss/forms": "^0.5.11",
+        "@tailwindcss/typography": "^0.5.19",
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/react": "^16.3.2",
         "@testing-library/user-event": "^14.6.1",
@@ -25,11 +27,13 @@
         "start": "next start"
     },
     "dependencies": {
+        "clsx": "^2.1.1",
         "jose": "^6.2.2",
         "next": "^16.2.4",
         "postgres": "^3.4.9",
         "react": "^19.2.5",
         "react-dom": "^19.2.5",
+        "tailwind-merge": "^3.5.0",
         "zod": "^4.3.6"
     }
 }
