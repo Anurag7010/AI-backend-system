@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Providers from "@/components/providers/Providers";
-import "./globals.css";
+import "../styles/globals.css";
 
-// Inter loaded at build time — no runtime request, no layout shift
-// subsets: latin covers standard Western characters
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  // variable: creates a CSS custom property instead of applying the font directly.
+  // This lets us use var(--font-inter) in tailwind.config.ts fontFamily.sans.
+  // Without variable: the font is applied directly to elements, not accessible as a CSS var.
+  variable: "--font-inter",
+  display: "swap", // show fallback font immediately, swap when Inter loads
+});
 
-// %s is replaced by each page's title — e.g. 'Dashboard | AI Product'
 export const metadata: Metadata = {
   title: {
     template: "%s | AI Product",
@@ -22,10 +26,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      {/* inter.className applies the font CSS variable to the body */}
-      <body className={`${inter.className} min-h-screen bg-gray-50`}>
-        <Providers>{children}</Providers>
+    // suppressHydrationWarning: the ThemeToggle adds/removes 'dark' class on <html>
+    // on the client after reading localStorage. The server renders without 'dark'.
+    // This class mismatch would normally produce a React hydration warning.
+    // suppressHydrationWarning tells React: "this attribute may differ between
+    // server and client — that's expected, don't warn about it."
+    // It only suppresses warnings one level deep — does not affect child components.
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${inter.variable} font-sans min-h-screen bg-background text-foreground antialiased`}
+      >
+        <Providers>
+          {/* ThemeToggle can be added to a top-level nav or header component:
+              <header>
+                <ThemeToggle />
+              </header>
+          */}
+          {children}
+        </Providers>
       </body>
     </html>
   );

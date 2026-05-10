@@ -1,4 +1,6 @@
-import { cookies } from 'next/headers'
+'use server'
+// import { cookies } from 'next/headers'
+// ↑ Will be used in production auth — commented out for stub implementation
 
 export type Session = {
   userId: string

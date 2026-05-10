@@ -155,3 +155,7 @@ poetry.lock
 
 days/
 external/
+
+# Next.js
+.next/
+out/
