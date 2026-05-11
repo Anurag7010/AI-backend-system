@@ -60,16 +60,6 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Color swatch verification */}
-      <div className="flex gap-2 p-4 mb-8">
-        <div className="h-8 w-8 rounded bg-brand-500" /> {/* blue */}
-        <div className="h-8 w-8 rounded bg-success-500" /> {/* green */}
-        <div className="h-8 w-8 rounded bg-error-500" /> {/* red */}
-        <div className="h-8 w-8 rounded bg-warning-500" /> {/* amber */}
-        <div className="h-8 w-8 rounded bg-muted" /> {/* gray surface */}
-        <div className="h-8 w-8 rounded bg-primary" /> {/* brand primary */}
-      </div>
-
       {/* Stats grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatCard
