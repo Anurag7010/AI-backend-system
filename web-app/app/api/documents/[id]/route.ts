@@ -114,7 +114,7 @@ async function deleteHandler(
 }
 
 // Route handlers receive params from Next.js as second argument
-type RouteProps = { params: { id: string } }
+type RouteProps = { params: Promise<{ id: string }> }
 
 const wrappedGet = compose(withErrorHandler, withRequestId, withLogging, withAuth({ required: true }))(
   (req, ctx) => getHandler(req, ctx as any)
@@ -127,11 +127,14 @@ const wrappedDelete = compose(withErrorHandler, withRequestId, withLogging, with
 )
 
 export async function GET(req: NextRequest, { params }: RouteProps) {
-  return wrappedGet(req, { requestId: '', startTime: 0, params } as any)
+  const resolvedParams = await params;
+  return wrappedGet(req, { requestId: '', startTime: 0, params: resolvedParams } as any)
 }
 export async function PATCH(req: NextRequest, { params }: RouteProps) {
-  return wrappedPatch(req, { requestId: '', startTime: 0, params } as any)
+  const resolvedParams = await params;
+  return wrappedPatch(req, { requestId: '', startTime: 0, params: resolvedParams } as any)
 }
 export async function DELETE(req: NextRequest, { params }: RouteProps) {
-  return wrappedDelete(req, { requestId: '', startTime: 0, params } as any)
+  const resolvedParams = await params;
+  return wrappedDelete(req, { requestId: '', startTime: 0, params: resolvedParams } as any)
 }

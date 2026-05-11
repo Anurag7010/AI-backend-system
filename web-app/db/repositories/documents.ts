@@ -6,6 +6,8 @@ import {
   NewDocument,
   DocumentStatus,
 } from '../schema'
+import { toDocumentId, toUserId } from '@/types'
+import type { Document as DomainDocument } from '@/types'
 
 // ============================================================
 // CREATE

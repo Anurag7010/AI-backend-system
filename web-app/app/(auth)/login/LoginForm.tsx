@@ -1,0 +1,158 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
+import { Divider } from "@/components/ui/Divider";
+import { Stack } from "@/components/ui/Stack";
+import { createSessionCookie } from "@/lib/auth";
+
+interface FormState {
+  email: string;
+  password: string;
+}
+
+interface FormErrors {
+  email?: string;
+  password?: string;
+}
+
+function validateEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+export function LoginForm() {
+  const router = useRouter();
+
+  const [form, setForm] = useState<FormState>({ email: "", password: "" });
+  const [errors, setErrors] = useState<FormErrors>({});
+  // submitted: true after first submit attempt — show errors only then
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  function validate(values: FormState): FormErrors {
+    const errs: FormErrors = {};
+    if (!values.email) errs.email = "Email is required";
+    else if (!validateEmail(values.email))
+      errs.email = "Enter a valid email address";
+    if (!values.password) errs.password = "Password is required";
+    else if (values.password.length < 8)
+      errs.password = "Password must be at least 8 characters";
+    return errs;
+  }
+
+  function handleChange(field: keyof FormState) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const updated = { ...form, [field]: e.target.value };
+      setForm(updated);
+      // Revalidate on change only after first submit — avoids premature errors
+      if (submitted) setErrors(validate(updated));
+    };
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitted(true);
+    setServerError(null);
+
+    const errs = validate(form);
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    setLoading(true);
+    try {
+      // Stub — on auth day: POST to /api/auth/login, receive JWT
+      await createSessionCookie("mock-user-id", form.email);
+      router.push("/dashboard");
+    } catch {
+      setServerError(
+        "Sign in failed. Please check your credentials and try again.",
+      );
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-start justify-center pt-20 px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-foreground">AI Product</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            AI-powered document Q&amp;A
+          </p>
+        </div>
+
+        <div className="card p-8">
+          <h2 className="text-xl font-semibold text-foreground mb-6">
+            Sign in
+          </h2>
+
+          {serverError && (
+            <Alert
+              variant="error"
+              className="mb-6"
+              dismissible
+              onDismiss={() => setServerError(null)}
+            >
+              {serverError}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit} noValidate>
+            <Stack direction="column" gap={4}>
+              <Input
+                label="Email"
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange("email")}
+                error={submitted ? errors.email : undefined}
+                placeholder="you@example.com"
+                autoComplete="email"
+                fullWidth
+              />
+
+              <Input
+                label="Password"
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={handleChange("password")}
+                error={submitted ? errors.password : undefined}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                fullWidth
+              />
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                loading={loading}
+                className="w-full mt-2"
+              >
+                Sign in
+              </Button>
+            </Stack>
+          </form>
+
+          <Divider label="or" className="my-6" />
+
+          <p className="text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/register"
+              className="text-primary font-medium hover:underline"
+            >
+              Create one
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

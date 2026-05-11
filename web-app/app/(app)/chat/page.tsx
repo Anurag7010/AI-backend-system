@@ -1,33 +1,30 @@
-import { ChatInterface } from "@/components/features/ChatInterface";
-import type { Metadata } from "next";
+import { Metadata } from "next";
+import { documentsRepository } from "@/db";
+import { ChatPageClient } from "./ChatPageClient";
 
-export const metadata: Metadata = {
-  title: "Chat",
+export const metadata: Metadata = { title: "Chat" };
+
+type ChatPageProps = {
+  searchParams: { documentId?: string };
 };
 
-export default function ChatPage({
-  searchParams,
-}: {
-  searchParams: { documentId?: string };
-}) {
-  // documentId passed from /documents/[id] via the 'Ask about this document' link
-  // ChatInterface uses this to pre-filter queries to a specific document
+export default async function ChatPage({ searchParams }: ChatPageProps) {
   const documentId = searchParams.documentId;
 
-  return (
-    <div className="flex h-full flex-col p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Chat</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {documentId
-            ? "Asking questions about a specific document"
-            : "Ask questions across all your documents"}
-        </p>
-      </div>
+  // If a documentId was passed (from the document detail page),
+  // fetch the document on the server to show context in the banner.
+  // searchParams cannot be accessed in Client Components directly —
+  // they are only available in Server Components and Route Handlers.
+  // We read them here and pass the result as a prop to the Client Component.
+  const contextDocument = documentId
+    ? await documentsRepository.findById(documentId)
+    : null;
 
-      <div className="flex-1 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <ChatInterface />
-      </div>
-    </div>
+  return (
+    <ChatPageClient
+      documentId={documentId}
+      contextDocumentName={contextDocument?.filename ?? null}
+      contextDocumentStatus={contextDocument?.status ?? null}
+    />
   );
 }

@@ -1,6 +1,8 @@
 import { eq, desc } from 'drizzle-orm'
 import db from '../connection'
 import { queries, Query, NewQuery } from '../schema'
+import { toQueryId, toUserId, toDocumentId } from '@/types'
+import type { Query as DomainQuery } from '@/types'
 
 // ============================================================
 // CREATE
