@@ -80,7 +80,8 @@ describe("FileUpload", () => {
       <FileUpload onFile={onFile} state={idleState} />,
     );
 
-    const dropZone = container.firstChild as HTMLElement;
+    // The inner div has the onDrop handler — not the outer wrapper div
+    const dropZone = container.querySelector('[class*="border-dashed"]') as HTMLElement;
     const file = new File(["content"], "dropped.pdf", {
       type: "application/pdf",
     });

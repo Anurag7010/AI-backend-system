@@ -36,7 +36,7 @@ export function DocumentManager(): React.ReactElement {
     <div className="flex flex-col gap-6 p-4">
       {/* Upload zone */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-gray-700">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">
           Upload Document
         </h2>
         <FileUpload
@@ -49,10 +49,10 @@ export function DocumentManager(): React.ReactElement {
       {/* Document list */}
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-700">Documents</h2>
+          <h2 className="text-sm font-semibold text-foreground">Documents</h2>
           <button
             onClick={refresh}
-            className="text-xs text-blue-600 hover:underline"
+            className="text-xs text-primary hover:underline"
           >
             Refresh
           </button>
@@ -61,7 +61,7 @@ export function DocumentManager(): React.ReactElement {
         <AsyncBoundary
           state={docState}
           renderLoading={() => (
-            <p className="text-center text-sm text-gray-400">
+            <p className="text-center text-sm text-muted-foreground">
               Loading documents...
             </p>
           )}
@@ -76,7 +76,7 @@ export function DocumentManager(): React.ReactElement {
           renderSuccess={(docs) => (
             <div className="flex flex-col gap-2">
               {docs.length === 0 && (
-                <p className="text-center text-sm text-gray-400">
+                <p className="text-center text-sm text-muted-foreground">
                   No documents yet — upload one above
                 </p>
               )}

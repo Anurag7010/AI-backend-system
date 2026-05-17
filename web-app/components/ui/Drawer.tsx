@@ -81,7 +81,7 @@ export function Drawer({
     <div className="fixed inset-0" style={{ zIndex: 40 }}>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 animate-fade-in"
+        className="absolute inset-0 bg-foreground/50 animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
         style={{ zIndex: 30 }}

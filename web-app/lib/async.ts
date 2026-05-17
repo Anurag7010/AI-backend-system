@@ -102,6 +102,9 @@ export async function withRetry<T>(
     } catch (err) {
       lastError = err
 
+      // CancellationError is never retried — caller explicitly cancelled, respect intent
+      if (err instanceof CancellationError) throw err
+
       // Never retry non-retryable errors — no point waiting
       if (!isRetryable(err)) {
         throw err
@@ -275,7 +278,10 @@ export async function resilientCall<T>(
     const timer = setTimeout(() => attemptController.abort(), timeoutMs)
 
     try {
-      const result = await fn(attemptController.signal)
+      // withCancellation races fn against the signal — if attemptController is aborted
+      // (by timeout or external signal), the promise rejects with CancellationError.
+      // Without this race, fn would hang forever if it doesn't check the signal itself.
+      const result = await withCancellation(fn, attemptController.signal)
 
       // Success — clean up and return
       clearTimeout(timer)
@@ -300,6 +306,24 @@ export async function resilientCall<T>(
         lastError = new TimeoutError(
           `Attempt ${attempt + 1} timed out after ${timeoutMs}ms`
         )
+      }
+
+      // withCancellation throws CancellationError when the attemptController fires.
+      // Distinguish three cases:
+      //   1. External signal aborted → true cancellation, throw
+      //   2. Internal controller aborted (timeout) → convert to TimeoutError for retry
+      //   3. fn threw CancellationError itself → treat as non-retryable cancellation
+      if (err instanceof CancellationError) {
+        if (externalSignal?.aborted) {
+          throw new CancellationError('Cancelled by caller')
+        }
+        if (attemptController.signal.aborted) {
+          // Our internal timeout triggered the abort
+          lastError = new TimeoutError(
+            `Attempt ${attempt + 1} timed out after ${timeoutMs}ms`
+          )
+        }
+        // else: fn threw CancellationError directly — lastError stays as-is
       }
 
       // Never retry cancellation — caller explicitly stopped the operation

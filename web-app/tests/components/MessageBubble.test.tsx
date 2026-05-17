@@ -36,7 +36,9 @@ describe("MessageBubble", () => {
     };
     const { container } = render(<MessageBubble message={message} />);
     // whitespace-pre-wrap tells the browser to render \n as line breaks
-    expect(container.querySelector(".whitespace-pre-wrap")).toBeInTheDocument();
-    expect(screen.getByText("Line one\nLine two")).toBeInTheDocument();
+    const preWrap = container.querySelector(".whitespace-pre-wrap");
+    expect(preWrap).toBeInTheDocument();
+    // getByText normalizes whitespace — use textContent to check the raw newline
+    expect(preWrap?.textContent).toBe("Line one\nLine two");
   });
 });

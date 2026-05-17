@@ -27,13 +27,13 @@ export function NavLink({ href, children, icon }: NavLinkProps) {
       href={href}
       className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
         isActive
-          ? "bg-blue-50 text-blue-700"
-          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
       }`}
     >
       {icon && (
         <span
-          className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-blue-600" : "text-gray-400"}`}
+          className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`}
         >
           {icon}
         </span>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Middleware } from './types'
 import { AppError, ValidationError } from '../errors'
+import { logError } from '../error-logger'
 
 export const withErrorHandler: Middleware = (handler) => {
   return async (req, context) => {
@@ -39,11 +40,10 @@ export const withErrorHandler: Middleware = (handler) => {
 
       // Unknown error — 500
       // Log full details internally, never expose to client
-      console.error('[unhandled error]', JSON.stringify({
-        requestId: context.requestId,
-        error: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-      }))
+      logError(
+        err instanceof Error ? err : new Error(String(err)),
+        { requestId: context.requestId }
+      )
 
       return NextResponse.json(
         {

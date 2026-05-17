@@ -1,4 +1,7 @@
 'use server'
+// server-only: this module will throw a build error if imported by a Client Component
+// Prevents database credentials and server logic from being bundled into the browser
+import 'server-only'
 // import { cookies } from 'next/headers'
 // ↑ Will be used in production auth — commented out for stub implementation
 
@@ -33,7 +36,6 @@ export async function createSessionCookie(
   email: string
 ): Promise<void> {
   // On auth day: cookies().set('session', signedJwt, { httpOnly: true, secure: true })
-  console.log('[auth stub] createSessionCookie called for', email)
 }
 
 /**
@@ -42,5 +44,4 @@ export async function createSessionCookie(
  */
 export async function clearSessionCookie(): Promise<void> {
   // On auth day: cookies().delete('session')
-  console.log('[auth stub] clearSessionCookie called')
 }

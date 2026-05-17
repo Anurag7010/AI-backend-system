@@ -121,7 +121,7 @@ export function Modal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 animate-fade-in"
+        className="absolute inset-0 bg-foreground/50 animate-fade-in"
         style={{ zIndex: 30 }}
         onClick={closeOnBackdrop ? onClose : undefined}
         aria-hidden="true"

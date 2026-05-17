@@ -68,7 +68,7 @@ describe('AIService — ask', () => {
       answer: 'Paris', sources: [], latencyBreakdown: {}, traceId: 'abc'
     }))
 
-    const history = [{ role: 'user', content: 'hello' }]
+    const history = [{ role: 'user' as const, content: 'hello' }]
     await service.ask({ query: 'follow up', history })
 
     const [, options] = requestSpy.mock.calls[0]
@@ -203,7 +203,7 @@ describe('AIService — ingest', () => {
 
   it('returns ServiceResponse with correct IngestResponse shape', async () => {
     // Verifies the response fields match the IngestResponse type
-    const mockData = { status: 'ingested', chunkCount: 12 }
+    const mockData = { documentId: 'doc-123', status: 'ingested', chunkCount: 12 }
     requestSpy.mockResolvedValue(makeSuccessResponse(mockData))
 
     const file = new File(['content'], 'test.pdf', { type: 'application/pdf' })

@@ -48,10 +48,10 @@ interface SidebarProps {
 
 export function Sidebar({ email }: SidebarProps) {
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-gray-200 bg-white">
+    <aside className="flex h-full w-64 flex-col border-r border-border bg-card" role="navigation" aria-label="Main navigation">
       {/* App name / logo */}
-      <div className="flex h-16 items-center border-b border-gray-200 px-4">
-        <span className="text-lg font-semibold text-gray-900">AI Product</span>
+      <div className="flex h-16 items-center border-b border-border px-4">
+        <span className="text-lg font-semibold text-foreground">AI Product</span>
       </div>
 
       {/* Navigation links */}
@@ -64,11 +64,11 @@ export function Sidebar({ email }: SidebarProps) {
       </nav>
 
       {/* User section */}
-      <div className="border-t border-gray-200 p-3 space-y-1">
+      <div className="border-t border-border p-3 space-y-1">
         <div className="px-3 py-2">
           {/* truncate prevents long emails from breaking the layout */}
-          <p className="text-xs text-gray-400">Signed in as</p>
-          <p className="text-sm font-medium text-gray-700 truncate">{email}</p>
+          <p className="text-xs text-muted-foreground">Signed in as</p>
+          <p className="text-sm font-medium text-foreground truncate">{email}</p>
         </div>
         <SignOutButton />
       </div>

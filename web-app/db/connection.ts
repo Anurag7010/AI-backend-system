@@ -1,3 +1,7 @@
+// server-only: this module will throw a build error if imported by a Client Component
+// Prevents database credentials and server logic from being bundled into the browser
+import 'server-only'
+
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import * as schema from './schema'

@@ -142,4 +142,8 @@ def run_smoke_test() -> None:
 
 
 if __name__ == "__main__":
-    run_smoke_test()
+    if "--health-check" in sys.argv:
+        passed = health_check()
+        sys.exit(0 if passed else 1)
+    else:
+        run_smoke_test()

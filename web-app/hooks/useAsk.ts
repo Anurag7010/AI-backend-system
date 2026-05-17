@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useAsyncState } from './useAsyncState'
 import { useAbortController } from './useAbortController'
 import { aiService } from '../services/ai-service'
+import { CancellationError } from '../lib/async'
 import type { Message, AskResponse } from '../types'
 import type { AsyncState } from '../types'
 
@@ -12,15 +13,19 @@ export function useAsk(): {
   clearHistory: () => void
 } {
   const { state, execute, reset } = useAsyncState<AskResponse>()
-  const { signal, abort, reset: resetSignal } = useAbortController()
+  const abortCtrl = useAbortController()
   const [messages, setMessages] = useState<Message[]>([])
 
   const ask = useCallback(async (query: string) => {
     // If a previous ask is in-flight, abort it before starting a new one.
     // Without this: two concurrent asks race to update state — whichever
     // arrives last wins regardless of which was sent last. User sees wrong answer.
-    abort()
-    resetSignal()
+    abortCtrl.abort()
+    abortCtrl.reset()
+
+    // Capture the NEW signal AFTER reset — the signal before reset is already aborted.
+    // We check this same signal after the await to detect if a third ask() came in.
+    const currentSignal = abortCtrl.signal
 
     // Capture history BEFORE appending the new user message.
     // The AI backend receives previous context but not the current question
@@ -36,8 +41,12 @@ export function useAsk(): {
       const response = await aiService.ask({
         query,
         history: historyBeforeThisMessage,
-        signal,
+        signal: currentSignal,
       })
+
+      // If a newer ask() aborted this one, do not append the stale answer.
+      // Throw CancellationError so useAsyncState resets to idle (not error state).
+      if (currentSignal.aborted) throw new CancellationError('ask superseded by newer call')
 
       if (response.error) {
         throw new Error(response.error.message)
@@ -52,12 +61,14 @@ export function useAsk(): {
 
       return data
     })
-  }, [messages, execute, abort, resetSignal, signal])
+  }, [messages, execute, abortCtrl])
 
   const clearHistory = useCallback(() => {
     setMessages([])
     reset()
-  }, [reset])
+    abortCtrl.abort()
+    abortCtrl.reset()
+  }, [reset, abortCtrl])
 
   return { state, messages, ask, clearHistory }
 }

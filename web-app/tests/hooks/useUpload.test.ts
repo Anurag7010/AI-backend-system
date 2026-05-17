@@ -43,9 +43,10 @@ describe('useUpload', () => {
 
     const { result } = renderHook(() => useUpload())
 
-    // Start upload — check uploading state
+    // Start upload — hook dispatches UPLOADING(0) → UPLOADING(100) → PROCESSING synchronously
+    // before awaiting ingest, so state is 'processing' after the sync portion
     act(() => { result.current.upload(mockFile) })
-    expect(result.current.state.status).toBe('uploading')
+    expect(result.current.state.status).toBe('processing')
 
     // Resolve — success
     await act(async () => { resolveIngest() })

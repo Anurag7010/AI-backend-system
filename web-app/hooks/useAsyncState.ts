@@ -1,6 +1,7 @@
 import { useReducer, useCallback } from 'react'
 import { AsyncState } from '../types'
 import { assertNever } from '../types'
+import { CancellationError } from '../lib/async'
 
 type Action<T> =
   | { type: 'LOADING' }
@@ -39,6 +40,11 @@ export function useAsyncState<T>(): {
       const result = await fn()
       dispatch({ type: 'SUCCESS', payload: result })
     } catch (err) {
+      // Cancellation is intentional — reset to idle, not error
+      if (err instanceof CancellationError) {
+        dispatch({ type: 'RESET' })
+        return
+      }
       const message = err instanceof Error ? err.message : 'An unexpected error occurred'
       dispatch({ type: 'ERROR', payload: message })
     }

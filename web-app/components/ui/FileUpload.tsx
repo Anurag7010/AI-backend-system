@@ -69,27 +69,27 @@ export function FileUpload({
         onDragLeave={() => setIsDragOver(false)}
         className={`rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
           isDisabled
-            ? "cursor-not-allowed border-gray-200 bg-gray-50"
+            ? "cursor-not-allowed border-border bg-muted"
             : isDragOver
-              ? "cursor-copy border-blue-400 bg-blue-50"
-              : "cursor-pointer border-gray-300 hover:border-gray-400"
+              ? "cursor-copy border-primary bg-primary/5"
+              : "cursor-pointer border-border hover:border-foreground/40"
         }`}
       >
         {state.status === "idle" && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Drop a PDF here or{" "}
-            <span className="text-blue-600 underline">click to browse</span>
+            <span className="text-primary underline">click to browse</span>
           </p>
         )}
 
         {state.status === "uploading" && (
           <div className="space-y-2">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-foreground">
               Uploading... {state.progress}%
             </p>
-            <div className="h-1.5 w-full rounded-full bg-gray-200">
+            <div className="h-1.5 w-full rounded-full bg-muted">
               <div
-                className="h-1.5 rounded-full bg-blue-600 transition-all"
+                className="h-1.5 rounded-full bg-primary transition-all"
                 style={{ width: `${state.progress}%` }}
               />
             </div>
@@ -97,7 +97,7 @@ export function FileUpload({
         )}
 
         {state.status === "processing" && (
-          <p className="text-sm text-gray-600">Processing document...</p>
+          <p className="text-sm text-foreground">Processing document...</p>
         )}
 
         {state.status === "success" && (

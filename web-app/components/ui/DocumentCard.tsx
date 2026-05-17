@@ -36,12 +36,12 @@ export function DocumentCard({
   const statusColor = STATUS_COLORS[document.status];
 
   return (
-    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-gray-900">
+        <span className="text-sm font-medium text-foreground">
           {document.filename}
         </span>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           {formatRelativeTime(document.createdAt)}
         </span>
       </div>

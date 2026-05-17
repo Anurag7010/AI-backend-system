@@ -5,6 +5,7 @@ import {
   RetryExhaustedError,
 } from '../lib/async'
 import type { ApiError } from '../types'
+import { logError } from '../lib/error-logger'
 
 // ============================================================
 // TYPES
@@ -301,6 +302,11 @@ export class BaseService {
         latencyMs,
         errorCode: serviceError.code,
       })
+
+      // Log 5xx and network errors — client errors (4xx, cancelled) are not bugs
+      if (serviceError.code === 'NETWORK_ERROR' || (serviceError.status !== undefined && serviceError.status >= 500)) {
+        logError(serviceError, { route: `${method} ${endpoint}` })
+      }
 
       // Return error in envelope — never throw from service layer
       return {

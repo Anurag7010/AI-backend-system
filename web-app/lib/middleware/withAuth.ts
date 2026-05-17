@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import { Middleware } from './types'
 import { AuthError } from '../errors'
+import { toUserId } from '@/types'
 
 interface AuthOptions {
   // If true: missing/invalid token returns 401
@@ -51,7 +52,7 @@ export function withAuth(options: AuthOptions = { required: true }): Middleware 
 
         // Attach userId to context — downstream handlers use context.userId
         // Never mutate NextRequest — use context instead
-        context.userId = payload.sub as string
+        context.userId = toUserId(payload.sub ?? '')
 
         return handler(req, context)
 

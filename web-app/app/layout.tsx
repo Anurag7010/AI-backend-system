@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Providers from "@/components/providers/Providers";
+import { AccessibilityWrapper } from "@/components/ui/AccessibilityWrapper";
 import "../styles/globals.css";
+import "@/lib/config";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -37,12 +39,9 @@ export default function RootLayout({
         className={`${inter.variable} font-sans min-h-screen bg-background text-foreground antialiased`}
       >
         <Providers>
-          {/* ThemeToggle can be added to a top-level nav or header component:
-              <header>
-                <ThemeToggle />
-              </header>
-          */}
-          {children}
+          <AccessibilityWrapper>
+            {children}
+          </AccessibilityWrapper>
         </Providers>
       </body>
     </html>

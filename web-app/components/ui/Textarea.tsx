@@ -1,3 +1,5 @@
+'use client'
+
 import React, { useEffect, useRef, useImperativeHandle } from "react";
 import { cn } from "@/lib/cn";
 import { getInputClasses } from "@/lib/variants";

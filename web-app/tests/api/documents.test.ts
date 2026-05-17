@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { makeRequest, makeAuthRequest, TEST_USER_ID } from '../setup/server'
 import type { DocumentStatus } from '../../db/schema'
+import { toDocumentId, toUserId } from '@/types'
+import type { Document as DomainDocument } from '@/types'
 
 // Mock repositories — route tests do not touch real database
 vi.mock('../../db/repositories/documents', () => ({
@@ -26,17 +28,9 @@ import {
   DELETE,
 } from '../../app/api/documents/[id]/route'
 
-const mockDocument: {
-  id: string
-  userId: string
-  filename: string
-  status: DocumentStatus
-  chunkCount: number
-  createdAt: Date
-  updatedAt: Date
-} = {
-  id: 'doc-001',
-  userId: TEST_USER_ID,
+const mockDocument: DomainDocument = {
+  id: toDocumentId('doc-001'),
+  userId: toUserId(TEST_USER_ID),
   filename: 'test.pdf',
   status: 'pending',
   chunkCount: 0,
@@ -219,7 +213,7 @@ describe('GET /api/documents/[id]', () => {
     // Proves ownership check — authenticated but not authorized
     vi.mocked(documentsRepo.findById).mockResolvedValue({
       ...mockDocument,
-      userId: 'different-user-id', // owned by someone else
+      userId: toUserId('different-user-id'), // owned by someone else
     })
 
     const res = await makeAuthRequest(getById, { params: { id: 'doc-001' } })
@@ -273,7 +267,7 @@ describe('PATCH /api/documents/[id]', () => {
   it('returns 403 on ownership violation', async () => {
     vi.mocked(documentsRepo.findById).mockResolvedValue({
       ...mockDocument,
-      userId: 'someone-else',
+      userId: toUserId('someone-else'),
     })
 
     const res = await makeAuthRequest(PATCH, {
@@ -331,7 +325,7 @@ describe('DELETE /api/documents/[id]', () => {
   it('returns 403 on ownership violation', async () => {
     vi.mocked(documentsRepo.findById).mockResolvedValue({
       ...mockDocument,
-      userId: 'someone-else',
+      userId: toUserId('someone-else'),
     })
 
     const res = await makeAuthRequest(DELETE, {

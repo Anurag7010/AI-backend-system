@@ -1,3 +1,7 @@
+// server-only: this module will throw a build error if imported by a Client Component
+// Prevents database credentials and server logic from being bundled into the browser
+import 'server-only'
+
 import { eq, desc } from 'drizzle-orm'
 import db from '../connection'
 import {
@@ -8,6 +12,20 @@ import {
 } from '../schema'
 import { toDocumentId, toUserId } from '@/types'
 import type { Document as DomainDocument } from '@/types'
+
+// Maps a raw Drizzle DB row to the branded domain type.
+// Called at the DB boundary so branded IDs propagate through the app.
+function toDomainDocument(doc: Document): DomainDocument {
+  return {
+    id: toDocumentId(doc.id),
+    userId: toUserId(doc.userId),
+    filename: doc.filename,
+    status: doc.status,
+    chunkCount: doc.chunkCount,
+    createdAt: doc.createdAt ?? new Date(),
+    updatedAt: doc.updatedAt ?? new Date(),
+  }
+}
 
 // ============================================================
 // CREATE
@@ -30,7 +48,7 @@ export async function create(data: NewDocument): Promise<Document> {
 // Returns null if not found — never throws
 // Route handler decides whether to 404
 // ============================================================
-export async function findById(id: string): Promise<Document | null> {
+export async function findById(id: string): Promise<DomainDocument | null> {
   const [document] = await db
     .select()
     .from(documents)
@@ -38,19 +56,20 @@ export async function findById(id: string): Promise<Document | null> {
     .limit(1)
 
   // Drizzle returns an array — destructure first element, undefined if empty
-  return document ?? null
+  return document ? toDomainDocument(document) : null
 }
 
 // ============================================================
 // FIND BY USER
 // All documents for a user — newest first
 // ============================================================
-export async function findByUser(userId: string): Promise<Document[]> {
-  return db
+export async function findByUser(userId: string): Promise<DomainDocument[]> {
+  const rows = await db
     .select()
     .from(documents)
     .where(eq(documents.userId, userId))
     .orderBy(desc(documents.createdAt))
+  return rows.map(toDomainDocument)
 }
 
 // ============================================================
