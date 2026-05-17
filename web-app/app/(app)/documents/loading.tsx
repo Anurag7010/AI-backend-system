@@ -1,4 +1,4 @@
-import { SkeletonCard } from "@/components/ui/Skeleton";
+import { SkeletonCard } from '@/components/ui/Skeleton'
 
 export default function DocumentsLoading() {
   return (
@@ -19,5 +19,5 @@ export default function DocumentsLoading() {
         ))}
       </div>
     </div>
-  );
+  )
 }
