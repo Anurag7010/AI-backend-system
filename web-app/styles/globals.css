@@ -1,0 +1,155 @@
+/* Tailwind directives — order matters:
+   base: resets and html/body defaults
+   components: reusable class-based patterns
+   utilities: single-purpose utility classes (always last — highest specificity) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   CSS CUSTOM PROPERTIES — LIGHT MODE
+   Values are raw HSL numbers without hsl() wrapper.
+   Tailwind wraps them: background: 'hsl(var(--background))'
+   This lets us use opacity modifiers: bg-background/50
+   If we wrote hsl() inside the variable, opacity modifiers would break.
+   ============================================================ */
+:root {
+  --background:         0 0% 100%;    /* white */
+  --foreground:         0 0% 9%;      /* near-black text */
+  --card:               0 0% 100%;    /* white card surface */
+  --card-foreground:    0 0% 9%;
+  --muted:              0 0% 96%;     /* very light gray — subtle backgrounds */
+  --muted-foreground:   0 0% 45%;     /* medium gray — secondary text */
+  --border:             0 0% 90%;     /* light border */
+  --input:              0 0% 90%;     /* input border color */
+  --ring:               221 83% 53%;  /* brand blue — focus rings */
+  --primary:            221 83% 53%;  /* brand blue — primary actions */
+  --primary-foreground: 0 0% 100%;    /* white text on primary buttons */
+  --radius:             0.5rem;       /* base radius for runtime JS access */
+}
+
+/* ============================================================
+   DARK MODE OVERRIDES
+   Applied when 'dark' class is on <html>.
+   Only surface colors change — semantic colors (success/error) stay the same.
+   ============================================================ */
+.dark {
+  --background:         0 0% 7%;      /* near-black background */
+  --foreground:         0 0% 95%;     /* near-white text */
+  --card:               0 0% 10%;     /* dark card surface */
+  --card-foreground:    0 0% 95%;
+  --muted:              0 0% 15%;     /* dark muted surface */
+  --muted-foreground:   0 0% 64%;     /* lighter gray for secondary text */
+  --border:             0 0% 18%;     /* dark border — subtle */
+  --input:              0 0% 18%;
+  --ring:               221 83% 53%;  /* same blue — visible on dark */
+  --primary:            221 83% 53%;
+  --primary-foreground: 0 0% 100%;
+}
+
+/* ============================================================
+   BASE LAYER — applied before components and utilities
+   @layer base keeps specificity low — utilities can always override
+   ============================================================ */
+@layer base {
+  /* Apply border-border to all borders by default.
+     Without this: borders use Tailwind's default (currentColor) not our CSS var.
+     border-border means 'use the --border CSS variable color for all borders'. */
+  * {
+    @apply border-border box-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    /* rlig: required ligatures (fi, fl etc.)
+       calt: contextual alternates — improves Inter readability at small sizes */
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Consistent focus ring across all interactive elements.
+     :focus-visible only shows ring on keyboard navigation — not mouse click.
+     This is the correct accessibility behavior. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Custom scrollbar — subtle, works in both light and dark mode.
+     Only applies in WebKit browsers (Chrome, Safari, Edge).
+     Firefox uses scrollbar-color property which we skip for simplicity. */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-neutral-300 dark:bg-neutral-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-neutral-400 dark:bg-neutral-600;
+  }
+
+  /* Text selection color — brand-colored for consistency */
+  ::selection {
+    @apply bg-brand-200 text-brand-900 dark:bg-brand-800 dark:text-brand-100;
+  }
+
+  /* Smooth scrolling — improves UX for anchor navigation */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Headings — consistent weight, tight line height */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+/* ============================================================
+   COMPONENT LAYER — reusable patterns that components can @apply
+   These are higher-level than utilities but lower than component files.
+   Use sparingly — most styling belongs in component files with cn().
+   ============================================================ */
+@layer components {
+  /* Prose styling for AI response content.
+     .prose comes from @tailwindcss/typography.
+     prose-neutral: neutral color scheme.
+     prose-invert: light text for dark backgrounds.
+     max-w-none: override prose's default max-width (we control width in the layout). */
+  .ai-response {
+    @apply prose prose-neutral dark:prose-invert max-w-none;
+    /* Code blocks in AI responses — dark background regardless of mode */
+    @apply prose-pre:bg-neutral-900 prose-pre:text-neutral-100 prose-pre:rounded-lg;
+    /* Inline code — brand colored */
+    @apply prose-code:text-brand-600 dark:prose-code:text-brand-400;
+    /* Remove default prose code backtick pseudo-elements */
+    @apply prose-code:before:content-none prose-code:after:content-none;
+  }
+
+  /* Standard page layout container */
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Reusable card — background, border, radius, shadow */
+  .card {
+    @apply bg-card text-card-foreground rounded-lg border border-border shadow-sm;
+  }
+
+  /* Section header pattern used on dashboard, documents page */
+  .section-header {
+    @apply mb-6;
+  }
+
+  .section-title {
+    @apply text-2xl font-semibold text-foreground;
+  }
+
+  .section-description {
+    @apply text-sm text-muted-foreground mt-1;
+  }
+}

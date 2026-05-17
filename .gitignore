@@ -14,7 +14,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -154,3 +153,9 @@ yarn-error.log*
 # Package lock files (Python)
 poetry.lock
 
+days/
+external/
+
+# Next.js
+.next/
+out/
