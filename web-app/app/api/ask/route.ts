@@ -10,10 +10,17 @@ import {
 } from '@/lib/middleware'
 import { RequestContext } from '@/lib/middleware/types'
 import { queriesRepository } from '@/db'
-import { aiService } from '@/services/ai-service'
+import { backendClient } from '@/lib/backend-client'
+import { BackendError, mapBackendError } from '@/lib/backend-error-mapper'
 
-const CreateQuerySchema = z.object({
-  query: z.string().min(1, 'Query is required'),
+const AskSchema = z.object({
+  query: z.string().min(1, 'Query is required').max(2000),
+  topK: z.number().int().min(1).max(20).optional().default(5),
+  strategy: z.enum(['semantic', 'hybrid', 'multi_query', 'rrf']).optional().default('semantic'),
+  history: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string(),
+  })).optional().default([]),
   documentId: z.string().uuid().optional(),
 })
 
@@ -35,55 +42,57 @@ async function createHandler(
   req: NextRequest,
   context: RequestContext
 ): Promise<NextResponse> {
-  const body = context.parsedBody as z.infer<typeof CreateQuerySchema>
+  const body = context.parsedBody as z.infer<typeof AskSchema>
 
-  // Create query record immediately — captures the question before AI runs
-  // This way we have a record even if AI fails
+  // Create query record before AI call — we have a record even if AI fails
   const queryRecord = await queriesRepository.create({
     userId: context.userId!,
     queryText: body.query,
     documentId: body.documentId ?? null,
   })
 
-  // Call AI backend
-  const aiResponse = await aiService.ask({
-    query: body.query,
-    history: [],
-  })
+  try {
+    const aiResponse = await backendClient.ask(body.query, {
+      topK: body.topK,
+      strategy: body.strategy,
+      history: body.history,
+      traceId: context.requestId,
+    })
 
-  if (aiResponse.error) {
-    // AI failed — update record to reflect failure, return 502
-    // Query record is preserved with empty answer for audit trail
+    // Persist answer and latency for query history
+    await queriesRepository.updateAnswer(
+      queryRecord.id,
+      aiResponse.answer,
+      aiResponse.latencyBreakdown.totalMs,
+      { sources: aiResponse.sources, traceId: aiResponse.traceId }
+    )
+
+    // Return AskResponse directly — the browser needs the AI answer, not the DB record
+    return NextResponse.json(aiResponse, { status: 200 })
+
+  } catch (err) {
+    const serviceError = err instanceof BackendError
+      ? mapBackendError(err)
+      : mapBackendError(err)
+
+    // Persist failure so query history reflects the error
     await queriesRepository.updateAnswer(
       queryRecord.id,
       '',
       0,
-      { error: aiResponse.error.code }
+      { error: serviceError.code }
     )
 
     return NextResponse.json(
       {
-        error: 'AI_BACKEND_ERROR',
-        message: 'AI service failed to generate a response',
+        error: serviceError.code,
+        message: serviceError.message,
         requestId: context.requestId,
         timestamp: new Date().toISOString(),
       },
       { status: 502 }
     )
   }
-
-  // Update record with answer
-  const updated = await queriesRepository.updateAnswer(
-    queryRecord.id,
-    aiResponse.data!.answer,
-    aiResponse.latencyMs,
-    { sources: aiResponse.data!.sources }
-  )
-
-  return NextResponse.json(
-    { data: updated, requestId: context.requestId },
-    { status: 201 }
-  )
 }
 
 const getHandler = compose(
@@ -93,7 +102,7 @@ const getHandler = compose(
 const postHandler = compose(
   withErrorHandler, withRequestId, withLogging,
   withAuth({ required: true }),
-  withValidation(CreateQuerySchema)
+  withValidation(AskSchema)
 )(createHandler)
 
 export async function GET(req: NextRequest) {

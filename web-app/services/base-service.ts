@@ -42,6 +42,7 @@ interface RequestLog {
 
 export class ServiceError extends Error {
   code: 'NETWORK_ERROR' | 'TIMEOUT' | 'CANCELLED' | 'HTTP_ERROR' | 'PARSE_ERROR' | 'UNKNOWN'
+    | 'AUTH_ERROR' | 'VALIDATION_ERROR' | 'RATE_LIMITED' | 'BACKEND_ERROR' | 'BACKEND_UNAVAILABLE'
   status?: number
   retryable: boolean
   originalError: unknown

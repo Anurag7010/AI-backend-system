@@ -11,7 +11,6 @@ import { BaseService, ServiceResponse } from '../../services/base-service'
 // HTTP mechanics that are already covered in base-service.test.ts.
 // ============================================================
 
-// Builders for the two possible ServiceResponse shapes
 function makeSuccessResponse<T>(data: T): ServiceResponse<T> {
   return { data, error: null, status: 200, latencyMs: 10 }
 }
@@ -32,7 +31,7 @@ function makeErrorResponse(): ServiceResponse<null> {
 }
 
 // ============================================================
-// ask — POST /ask
+// ask — POST /api/ask
 // ============================================================
 describe('AIService — ask', () => {
 
@@ -48,8 +47,7 @@ describe('AIService — ask', () => {
     vi.restoreAllMocks()
   })
 
-  it('calls /ask with POST method', async () => {
-    // Proves ask maps to the correct endpoint and HTTP verb
+  it('calls /api/ask with POST method', async () => {
     requestSpy.mockResolvedValue(makeSuccessResponse({
       answer: '', sources: [], latencyBreakdown: {}, traceId: ''
     }))
@@ -57,13 +55,11 @@ describe('AIService — ask', () => {
     await service.ask({ query: 'test' })
 
     const [endpoint, options] = requestSpy.mock.calls[0]
-    expect(endpoint).toBe('/ask')
+    expect(endpoint).toBe('/api/ask')
     expect(options.method).toBe('POST')
   })
 
   it('sends query and history in request body', async () => {
-    // Proves the body is built with the correct field names matching the backend contract
-    // Body is passed as a plain object (not a JSON string) — BaseService handles serialization
     requestSpy.mockResolvedValue(makeSuccessResponse({
       answer: 'Paris', sources: [], latencyBreakdown: {}, traceId: 'abc'
     }))
@@ -72,13 +68,11 @@ describe('AIService — ask', () => {
     await service.ask({ query: 'follow up', history })
 
     const [, options] = requestSpy.mock.calls[0]
-    // Body is a plain object — BaseService will JSON.stringify it before sending
     expect(options.body.query).toBe('follow up')
     expect(options.body.history).toEqual(history)
   })
 
   it('defaults history to empty array when not provided', async () => {
-    // Proves history is always present in the body — backend expects the field
     requestSpy.mockResolvedValue(makeSuccessResponse({
       answer: '', sources: [], latencyBreakdown: {}, traceId: ''
     }))
@@ -90,8 +84,6 @@ describe('AIService — ask', () => {
   })
 
   it('forwards AbortSignal to request', async () => {
-    // Proves the signal is threaded through so the HTTP call can be cancelled
-    // mid-flight (e.g. user navigates away while LLM is generating)
     requestSpy.mockResolvedValue(makeSuccessResponse({
       answer: '', sources: [], latencyBreakdown: {}, traceId: ''
     }))
@@ -104,8 +96,6 @@ describe('AIService — ask', () => {
   })
 
   it('disables deduplication — each ask is a unique user intent', async () => {
-    // Unlike retrieve, two identical questions fired quickly must both reach the server
-    // The second ask might be a deliberate retry or a different conversation turn
     requestSpy.mockResolvedValue(makeSuccessResponse({
       answer: '', sources: [], latencyBreakdown: {}, traceId: ''
     }))
@@ -117,7 +107,6 @@ describe('AIService — ask', () => {
   })
 
   it('returns ServiceResponse with correct AskResponse shape on success', async () => {
-    // Verifies the response is correctly typed and the envelope is passed through as-is
     const mockData = {
       answer: 'Paris is the capital',
       sources: [{ content: 'doc text', score: 0.95, metadata: { page: 1 } }],
@@ -135,8 +124,6 @@ describe('AIService — ask', () => {
   })
 
   it('surfaces errors in the response envelope without throwing', async () => {
-    // AIService inherits BaseService's never-throw contract
-    // Callers check response.error — no try/catch needed
     requestSpy.mockResolvedValue(makeErrorResponse())
 
     const response = await service.ask({ query: 'test' })
@@ -148,7 +135,7 @@ describe('AIService — ask', () => {
 })
 
 // ============================================================
-// ingest — POST /ingest
+// ingest — POST /api/documents
 // ============================================================
 describe('AIService — ingest', () => {
 
@@ -164,50 +151,45 @@ describe('AIService — ingest', () => {
     vi.restoreAllMocks()
   })
 
-  it('calls /ingest with POST method', async () => {
-    requestSpy.mockResolvedValue(makeSuccessResponse({ status: 'ok', chunkCount: 5 }))
+  it('calls /api/documents with POST method', async () => {
+    requestSpy.mockResolvedValue(makeSuccessResponse({ data: { documentId: 'd1', status: 'ingested', chunkCount: 5 } }))
 
     const file = new File(['content'], 'test.pdf', { type: 'application/pdf' })
-    await service.ingest({ file })
+    await service.ingest(file)
 
     const [endpoint, options] = requestSpy.mock.calls[0]
-    expect(endpoint).toBe('/ingest')
+    expect(endpoint).toBe('/api/documents')
     expect(options.method).toBe('POST')
   })
 
   it('sends body as FormData — not JSON', async () => {
-    // File uploads must use multipart/form-data
-    // BaseService detects FormData and skips JSON.stringify + lets browser set Content-Type boundary
-    requestSpy.mockResolvedValue(makeSuccessResponse({ status: 'ok', chunkCount: 5 }))
+    requestSpy.mockResolvedValue(makeSuccessResponse({ data: { documentId: 'd1', status: 'ingested', chunkCount: 5 } }))
 
     const file = new File(['pdf content'], 'doc.pdf', { type: 'application/pdf' })
-    await service.ingest({ file })
+    await service.ingest(file)
 
     const [, options] = requestSpy.mock.calls[0]
     expect(options.body).toBeInstanceOf(FormData)
   })
 
-  it('appends file and filename to FormData', async () => {
-    // Both fields must be present — backend uses 'file' for the binary and 'filename' for metadata
-    requestSpy.mockResolvedValue(makeSuccessResponse({ status: 'ok', chunkCount: 5 }))
+  it('appends file to FormData', async () => {
+    requestSpy.mockResolvedValue(makeSuccessResponse({ data: { documentId: 'd1', status: 'ingested', chunkCount: 5 } }))
 
     const file = new File(['content'], 'report.pdf', { type: 'application/pdf' })
-    await service.ingest({ file })
+    await service.ingest(file)
 
     const [, options] = requestSpy.mock.calls[0]
     const formData: FormData = options.body
-
     expect(formData.get('file')).toBeTruthy()
-    expect(formData.get('filename')).toBe('report.pdf')
   })
 
   it('returns ServiceResponse with correct IngestResponse shape', async () => {
-    // Verifies the response fields match the IngestResponse type
+    // Route wraps response as { data: IngestResponse } — AIService unwraps it
     const mockData = { documentId: 'doc-123', status: 'ingested', chunkCount: 12 }
-    requestSpy.mockResolvedValue(makeSuccessResponse(mockData))
+    requestSpy.mockResolvedValue(makeSuccessResponse({ data: mockData }))
 
     const file = new File(['content'], 'test.pdf', { type: 'application/pdf' })
-    const response = await service.ingest({ file })
+    const response = await service.ingest(file)
 
     expect(response.data?.status).toBe('ingested')
     expect(response.data?.chunkCount).toBe(12)
@@ -218,7 +200,7 @@ describe('AIService — ingest', () => {
     requestSpy.mockResolvedValue(makeErrorResponse())
 
     const file = new File(['content'], 'bad.pdf', { type: 'application/pdf' })
-    const response = await service.ingest({ file })
+    const response = await service.ingest(file)
 
     expect(response.data).toBeNull()
     expect(response.error?.code).toBe('NETWORK_ERROR')
@@ -227,7 +209,7 @@ describe('AIService — ingest', () => {
 })
 
 // ============================================================
-// retrieve — GET /retrieve?...
+// retrieve — GET /api/retrieve?...
 // ============================================================
 describe('AIService — retrieve', () => {
 
@@ -244,33 +226,30 @@ describe('AIService — retrieve', () => {
   })
 
   it('uses GET method', async () => {
-    // retrieve is a read operation — must not mutate server state
-    requestSpy.mockResolvedValue(makeSuccessResponse({ chunks: [] }))
+    requestSpy.mockResolvedValue(makeSuccessResponse({ data: { chunks: [], traceId: '' } }))
 
-    await service.retrieve({ query: 'test' })
+    await service.retrieve('test')
 
     const [, options] = requestSpy.mock.calls[0]
     expect(options.method).toBe('GET')
   })
 
   it('encodes query, top_k and strategy as URL search params', async () => {
-    // Params are appended to the endpoint string, not the body
-    // URLSearchParams handles percent-encoding so special chars are safe
-    requestSpy.mockResolvedValue(makeSuccessResponse({ chunks: [] }))
+    requestSpy.mockResolvedValue(makeSuccessResponse({ data: { chunks: [], traceId: '' } }))
 
-    await service.retrieve({ query: 'neural networks', top_k: 5, strategy: 'mmr' })
+    await service.retrieve('neural networks', 5, 'mmr')
 
     const [endpoint] = requestSpy.mock.calls[0]
+    expect(endpoint).toContain('/api/retrieve')
     expect(endpoint).toContain('query=neural+networks')
     expect(endpoint).toContain('top_k=5')
     expect(endpoint).toContain('strategy=mmr')
   })
 
   it('applies default top_k=5 and strategy=semantic when not provided', async () => {
-    // Sensible defaults so callers can just pass query without boilerplate
-    requestSpy.mockResolvedValue(makeSuccessResponse({ chunks: [] }))
+    requestSpy.mockResolvedValue(makeSuccessResponse({ data: { chunks: [], traceId: '' } }))
 
-    await service.retrieve({ query: 'test' })
+    await service.retrieve('test')
 
     const [endpoint] = requestSpy.mock.calls[0]
     expect(endpoint).toContain('top_k=5')
@@ -278,26 +257,22 @@ describe('AIService — retrieve', () => {
   })
 
   it('enables deduplication — rapid identical queries share one in-flight request', async () => {
-    // Unlike ask, retrieve is fired on every keystroke while searching
-    // Dedup prevents N parallel identical requests for the same search term
-    requestSpy.mockResolvedValue(makeSuccessResponse({ chunks: [] }))
+    requestSpy.mockResolvedValue(makeSuccessResponse({ data: { chunks: [], traceId: '' } }))
 
-    await service.retrieve({ query: 'test' })
+    await service.retrieve('test')
 
     const [, options] = requestSpy.mock.calls[0]
     expect(options.deduplicate).toBe(true)
   })
 
   it('returns ServiceResponse with correct RetrieveResponse shape', async () => {
-    // Verifies chunks array is present and correctly structured
-    const mockData = {
-      chunks: [
-        { content: 'relevant text', score: 0.92, metadata: { source: 'doc1.pdf' } },
-      ],
-    }
-    requestSpy.mockResolvedValue(makeSuccessResponse(mockData))
+    // Route wraps response as { data: RetrieveResponse } — AIService unwraps it
+    const mockChunks = [
+      { content: 'relevant text', score: 0.92, metadata: { source: 'doc1.pdf' } },
+    ]
+    requestSpy.mockResolvedValue(makeSuccessResponse({ data: { chunks: mockChunks, traceId: 't1' } }))
 
-    const response = await service.retrieve({ query: 'neural networks' })
+    const response = await service.retrieve('neural networks')
 
     expect(response.data?.chunks).toHaveLength(1)
     expect(response.data?.chunks[0].score).toBe(0.92)
@@ -308,7 +283,7 @@ describe('AIService — retrieve', () => {
   it('surfaces errors in the response envelope without throwing', async () => {
     requestSpy.mockResolvedValue(makeErrorResponse())
 
-    const response = await service.retrieve({ query: 'test' })
+    const response = await service.retrieve('test')
 
     expect(response.data).toBeNull()
     expect(response.error?.code).toBe('NETWORK_ERROR')

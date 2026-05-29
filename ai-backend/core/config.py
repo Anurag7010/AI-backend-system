@@ -47,6 +47,11 @@ class Config:
     # ── Observability ─────────────────────────────────────────────────────────
     LOG_LEVEL: str
 
+    # ── Internal API key ──────────────────────────────────────────────────────
+    # Shared secret between Next.js and this Python backend.
+    # Next.js sends it as X-API-Key on every proxied request.
+    INTERNAL_API_KEY: str
+
     @classmethod
     def load(cls) -> "Config":
         """Load config from environment. Raises EnvironmentError if OPENAI_API_KEY is missing."""
@@ -59,6 +64,7 @@ class Config:
             DEFAULT_CHUNK_SIZE          = int(_optional("DEFAULT_CHUNK_SIZE",       "500")),
             DEFAULT_RETRIEVAL_STRATEGY  = _optional("DEFAULT_RETRIEVAL_STRATEGY",  "semantic"),
             LOG_LEVEL                   = _optional("LOG_LEVEL",                   "INFO"),
+            INTERNAL_API_KEY            = _optional("INTERNAL_API_KEY",            "dev-internal-key-change-in-production"),
         )
 
 

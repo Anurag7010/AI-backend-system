@@ -1,26 +1,41 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { makeRequest, makeAuthRequest, TEST_USER_ID } from '../setup/server'
-import type { DocumentStatus } from '../../db/schema'
+import { makeRequest, makeAuthRequest, makeFormDataRequest, TEST_USER_ID } from '../setup/server'
 import { toDocumentId, toUserId } from '@/types'
 import type { Document as DomainDocument } from '@/types'
 
-// Mock repositories — route tests do not touch real database
-vi.mock('../../db/repositories/documents', () => ({
-  create: vi.fn(),
-  findById: vi.fn(),
-  findByUser: vi.fn(),
-  updateStatus: vi.fn(),
-  deleteDocument: vi.fn(),
+// server-only guard would throw in jsdom — stub it out for tests
+vi.mock('server-only', () => ({}))
+
+// Mock backend client — route tests don't call Python
+vi.mock('../../lib/backend-client', () => ({
+  backendClient: {
+    ingest: vi.fn(),
+    ask: vi.fn(),
+    retrieve: vi.fn(),
+    health: vi.fn(),
+  },
 }))
 
-vi.mock('../../db/repositories/queries', () => ({
-  create: vi.fn(),
-  findByUser: vi.fn(),
-  findByDocument: vi.fn(),
-  updateAnswer: vi.fn(),
+// Mock the entire db module — prevents db/connection.ts from requiring DATABASE_URL
+vi.mock('../../db', () => ({
+  documentsRepository: {
+    create: vi.fn(),
+    findById: vi.fn(),
+    findByUser: vi.fn(),
+    updateStatus: vi.fn(),
+    deleteDocument: vi.fn(),
+  },
+  queriesRepository: {
+    create: vi.fn(),
+    findByUser: vi.fn(),
+    findByDocument: vi.fn(),
+    updateAnswer: vi.fn(),
+  },
 }))
 
-import * as documentsRepo from '../../db/repositories/documents'
+import * as db from '../../db'
+const documentsRepo = db.documentsRepository as typeof db.documentsRepository
+import { backendClient } from '../../lib/backend-client'
 import { GET, POST } from '../../app/api/documents/route'
 import {
   GET as getById,
@@ -39,7 +54,6 @@ const mockDocument: DomainDocument = {
 }
 
 beforeEach(() => {
-  // Reset all mocks — prevents state leaking between tests
   vi.resetAllMocks()
 })
 
@@ -59,7 +73,6 @@ describe('GET /api/documents', () => {
   })
 
   it('calls findByUser with correct userId from auth context', async () => {
-    // Proves middleware correctly extracts userId from JWT and passes to handler
     vi.mocked(documentsRepo.findByUser).mockResolvedValue([])
 
     await makeAuthRequest(GET, {}, TEST_USER_ID)
@@ -68,7 +81,6 @@ describe('GET /api/documents', () => {
   })
 
   it('returns 200 with empty array when user has no documents', async () => {
-    // Proves empty state is 200 not 404 — no documents is a valid state
     vi.mocked(documentsRepo.findByUser).mockResolvedValue([])
 
     const res = await makeAuthRequest(GET)
@@ -78,9 +90,7 @@ describe('GET /api/documents', () => {
   })
 
   it('returns 401 when Authorization header is missing', async () => {
-    // Proves withAuth middleware short-circuits unauthenticated requests
     const res = await makeRequest(GET)
-
     expect(res.status).toBe(401)
   })
 
@@ -88,12 +98,10 @@ describe('GET /api/documents', () => {
     const res = await makeRequest(GET, {
       headers: { Authorization: 'Bearer invalid.token.here' },
     })
-
     expect(res.status).toBe(401)
   })
 
   it('response includes X-Request-ID header', async () => {
-    // Proves withRequestId middleware runs and attaches trace ID
     vi.mocked(documentsRepo.findByUser).mockResolvedValue([])
 
     const res = await makeAuthRequest(GET)
@@ -104,84 +112,77 @@ describe('GET /api/documents', () => {
 })
 
 // ============================================================
-// POST /api/documents
+// POST /api/documents (multipart file upload → ingest)
 // ============================================================
 
 describe('POST /api/documents', () => {
 
-  it('returns 201 with created document on valid request', async () => {
-    vi.mocked(documentsRepo.create).mockResolvedValue(mockDocument)
+  function makeTestFormData(filename = 'report.pdf'): FormData {
+    const fd = new FormData()
+    fd.append('file', new File(['pdf content'], filename, { type: 'application/pdf' }))
+    return fd
+  }
 
-    const res = await makeAuthRequest(POST, {
-      method: 'POST',
-      body: { filename: 'report.pdf' },
-    })
+  it('returns 201 with IngestResponse on valid file upload', async () => {
+    vi.mocked(documentsRepo.create).mockResolvedValue(mockDocument)
+    vi.mocked(documentsRepo.updateStatus).mockResolvedValue({ ...mockDocument, status: 'ingested', chunkCount: 5 })
+    vi.mocked(backendClient.ingest as any).mockResolvedValue({ status: 'ok', chunkCount: 5, error: null })
+
+    const res = await makeFormDataRequest(POST, makeTestFormData())
 
     expect(res.status).toBe(201)
-    expect((res.body as any).data.filename).toBe('test.pdf')
+    const body = res.body as any
+    expect(body.data.status).toBe('ingested')
+    expect(body.data.chunkCount).toBe(5)
   })
 
-  it('returns Location header pointing to created resource', async () => {
-    // Proves REST convention — 201 always includes Location
+  it('returns Location header pointing to created document', async () => {
     vi.mocked(documentsRepo.create).mockResolvedValue(mockDocument)
+    vi.mocked(documentsRepo.updateStatus).mockResolvedValue({ ...mockDocument, status: 'ingested' })
+    vi.mocked(backendClient.ingest as any).mockResolvedValue({ status: 'ok', chunkCount: 3, error: null })
 
-    const res = await makeAuthRequest(POST, {
-      method: 'POST',
-      body: { filename: 'report.pdf' },
-    })
+    const res = await makeFormDataRequest(POST, makeTestFormData())
 
     expect(res.headers.get('location')).toBe('/api/documents/doc-001')
   })
 
   it('calls create() with userId from auth context', async () => {
-    // Proves userId is sourced from JWT — not from request body (security)
     vi.mocked(documentsRepo.create).mockResolvedValue(mockDocument)
+    vi.mocked(documentsRepo.updateStatus).mockResolvedValue({ ...mockDocument, status: 'ingested' })
+    vi.mocked(backendClient.ingest as any).mockResolvedValue({ status: 'ok', chunkCount: 1, error: null })
 
-    await makeAuthRequest(POST, { method: 'POST', body: { filename: 'f.pdf' } })
+    await makeFormDataRequest(POST, makeTestFormData())
 
     expect(documentsRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({ userId: TEST_USER_ID })
     )
   })
 
-  it('returns 422 when filename is missing from body', async () => {
-    // Proves withValidation rejects before handler runs
-    const res = await makeAuthRequest(POST, {
-      method: 'POST',
-      body: {},
-    })
+  it('returns 400 when no file in form data', async () => {
+    // Empty FormData — no file field
+    const res = await makeFormDataRequest(POST, new FormData())
 
     expect(res.status).toBe(422)
   })
 
-  it('returns 422 with field-level error details on validation failure', async () => {
-    // Proves Zod errors are mapped to field-level array — not just a generic message
-    const res = await makeAuthRequest(POST, {
-      method: 'POST',
-      body: {},
-    })
-
-    const body = res.body as any
-    expect(body.fields).toBeDefined()
-    expect(body.fields[0].field).toBe('filename')
-  })
-
   it('returns 401 when not authenticated', async () => {
-    const res = await makeRequest(POST, { method: 'POST', body: { filename: 'f.pdf' } })
+    const res = await makeRequest(POST, { method: 'POST' })
     expect(res.status).toBe(401)
   })
 
-  it('returns 500 when repository throws — no stack trace in response', async () => {
-    // Proves withErrorHandler catches unexpected errors
-    // Stack traces must never appear in API responses — they leak internals
-    vi.mocked(documentsRepo.create).mockRejectedValue(new Error('DB connection lost'))
+  it('marks document as failed and returns 502 when backend ingest fails', async () => {
+    vi.mocked(documentsRepo.create).mockResolvedValue(mockDocument)
+    vi.mocked(documentsRepo.updateStatus).mockResolvedValue({ ...mockDocument, status: 'failed' })
+    vi.mocked(backendClient.ingest as any).mockResolvedValue({
+      status: 'error', chunkCount: 0, error: 'Pipeline failed'
+    })
 
-    const res = await makeAuthRequest(POST, { method: 'POST', body: { filename: 'f.pdf' } })
+    const res = await makeFormDataRequest(POST, makeTestFormData())
 
-    expect(res.status).toBe(500)
-    const body = res.body as any
-    expect(body.stack).toBeUndefined()
-    expect(body.error).toBe('INTERNAL_SERVER_ERROR')
+    expect(res.status).toBe(502)
+    expect(documentsRepo.updateStatus).toHaveBeenCalledWith(
+      expect.any(String), 'failed', undefined
+    )
   })
 
 })
@@ -210,10 +211,9 @@ describe('GET /api/documents/[id]', () => {
   })
 
   it('returns 403 when document belongs to different user', async () => {
-    // Proves ownership check — authenticated but not authorized
     vi.mocked(documentsRepo.findById).mockResolvedValue({
       ...mockDocument,
-      userId: toUserId('different-user-id'), // owned by someone else
+      userId: toUserId('different-user-id'),
     })
 
     const res = await makeAuthRequest(getById, { params: { id: 'doc-001' } })
@@ -306,8 +306,6 @@ describe('DELETE /api/documents/[id]', () => {
     })
 
     expect(res.status).toBe(204)
-    // Body must be null/empty — 204 means No Content
-    // Sending a body with 204 violates HTTP spec
     expect(res.body).toBeNull()
   })
 

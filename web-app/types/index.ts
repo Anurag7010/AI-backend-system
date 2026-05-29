@@ -44,6 +44,7 @@ export type {
   UpdateDocumentResponse,
   QueryListRequest,
   QueryListResponse,
+  RetrieveResponse,
 } from './api'
 
 export {

@@ -51,7 +51,7 @@ export function useUpload(): {
       // Can take seconds to minutes depending on file size.
       dispatch({ type: 'PROCESSING' })
 
-      const response = await aiService.ingest({ file, signal })
+      const response = await aiService.ingest(file, signal)
 
       if (response.error) {
         // Check if error was due to abort signal

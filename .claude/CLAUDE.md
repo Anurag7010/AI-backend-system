@@ -11,21 +11,21 @@ Three interconnected systems:
 
 ## Current Status
 
-- Days 1-2: AI backend foundation complete (llm_client, prompt_engine, rag_interface, logger, tracer, eval_runner)
-- Days 3-8: AI backend hardened (observability, evals, refactor)
-- Days 9-10: Async utilities complete (lib/async.ts, services/base-service.ts, services/ai-service.ts)
-- Days 11-12: HTTP middleware + database layer complete
-- Days 13-14: TypeScript type system + React hooks + UI components complete
-- Days 15-16: Next.js app structure + complete UI component library complete
-- Day 6 Block 6: Phase 1+2 fully verified — 0 TS errors, 105/105 tests passing, tagged v0.2-phase2-complete
-  - server-only boundaries enforced (db/connection, repositories, lib/auth)
-  - Branded ID types with domain mappers at repository boundary
-  - All hardcoded colors replaced with design tokens across all components
-  - AccessibilityWrapper (aria-live) mounted in root layout
-  - error-logger wired into middleware, base-service, error boundary
-  - resilientCall timeout/cancellation disambiguation fixed
-  - useAsk abort race condition fixed
-  - Barrel exports complete: hooks/index.ts, components/ui/index.ts
+- Days 1-2: AI backend foundation — COMPLETE (llm_client, prompt_engine, rag_interface, logger, tracer, eval_runner)
+- Days 3-8: AI backend hardened — COMPLETE (observability, evals, refactor)
+- Days 9-10: Async utilities — COMPLETE (lib/async.ts, services/base-service.ts, services/ai-service.ts)
+- Days 11-12: HTTP middleware + database layer — COMPLETE
+- Days 13-14: TypeScript type system + React hooks + UI components — COMPLETE
+- Days 15-16: Next.js app structure + UI component library — COMPLETE
+- Days 17-18 (Day 7): Integration architecture + SSE streaming — COMPLETE
+  - FastAPI server: /ask, /ingest, /retrieve, /health, /ask/stream
+  - Next.js proxy routes wired to Python backend via backendClient
+  - SSE streaming: tokens stream token-by-token from Python → Next.js → browser
+  - SSE parser (lib/sse-parser.ts), useAsk streaming with token batching
+  - 34 Python API tests, 22 SSE parser tests, 10 stream route tests — all passing
+  - 2 bugs found and fixed: AskRequest min_length=1, logging.LogRecord filename conflict
+  - Smoke test (test_smoke.py) skips automatically when server not running
+- Next: Day 8 — Real JWT authentication (replacing stubbed getSession)
 
 ## Project Structure
 
@@ -184,8 +184,8 @@ cd web-app && npm test
 
 <!-- Update this section as issues are found and resolved -->
 
-- Auth is stubbed — real implementation comes on Day 19
-- AI backend URL is localhost — real integration comes on Day 17-18
+- Auth is still stubbed — getSession() returns mock session — fixing on Day 8
+- Smoke test requires manual server startup — not automated yet
 
 ## What Claude Code Should Do on Every Session Start
 

@@ -297,7 +297,7 @@ async def ingest(
             "ingest_file_received",
             extra={
                 "trace_id": trace_id,
-                "filename": file.filename,
+                "file_name": file.filename,      # "filename" is reserved by Python logging.LogRecord
                 "size_bytes": len(content),
                 "tmp_path": tmp_path,
             },

@@ -1,0 +1,84 @@
+"""
+api/models.py
+
+Pydantic request/response models for the HTTP API contract.
+
+These define what goes over the wire — separate from internal types in rag_interface.py.
+Internal functions return plain dicts; these models validate, document, and serialize
+them into consistent HTTP responses.
+
+Alignment with web-app TypeScript types in types/api.ts:
+  - AskResponse   → AskResponse (camelCase conversion handled by Next.js proxy in Block 2)
+  - ErrorResponse → ApiError    (field mapping: error→code, trace_id→requestId)
+"""
+
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field
+
+
+# ── Request models ────────────────────────────────────────────────────────────
+
+class AskRequest(BaseModel):
+    query: str = Field(..., min_length=1, description="The question to answer using the RAG pipeline")
+    top_k: int = Field(5, ge=1, le=20, description="Number of document chunks to retrieve")
+    strategy: str = Field("semantic", description="Retrieval strategy: semantic | hybrid | multi_query | rrf")
+    history: list[dict] | None = Field(None, description="Chat history as list of {role, content} dicts")
+
+
+class IngestRequest(BaseModel):
+    # File comes via UploadFile in the route handler — not in this model.
+    # This model captures optional form metadata sent alongside the file.
+    metadata: dict = Field(default_factory=dict, description="Optional key-value metadata attached to the document")
+
+
+class RetrieveRequest(BaseModel):
+    query: str = Field(..., description="The search query for retrieval")
+    top_k: int = Field(5, ge=1, le=20, description="Number of chunks to return")
+    strategy: str = Field("semantic", description="Retrieval strategy: semantic | hybrid | multi_query | rrf")
+
+
+# ── Response models ───────────────────────────────────────────────────────────
+
+class SourceResponse(BaseModel):
+    content: str = Field(..., description="Text content of the retrieved chunk")
+    score: float | None = Field(None, description="Relevance score from the vectorstore")
+    metadata: dict = Field(default_factory=dict, description="Source metadata: file, chunk_index, etc.")
+
+
+class AskResponse(BaseModel):
+    answer: str = Field(..., description="LLM-generated answer grounded in retrieved documents")
+    sources: list[SourceResponse] = Field(..., description="Document chunks used to generate the answer")
+    trace_id: str = Field(..., description="Request trace ID for observability correlation")
+    latency_breakdown: dict = Field(..., description="{retrieval_ms, generation_ms, total_ms}")
+
+
+class IngestResponse(BaseModel):
+    status: str = Field(..., description='"ok" or "error"')
+    chunk_count: int = Field(..., description="Number of chunks stored in the vectorstore")
+    document_id: str | None = Field(None, description="Identifier for the ingested document")
+    error: str | None = Field(None, description="Error message if ingestion failed")
+
+
+class RetrieveResponse(BaseModel):
+    chunks: list[SourceResponse] = Field(..., description="Retrieved document chunks")
+    trace_id: str = Field(..., description="Request trace ID for observability correlation")
+
+
+class HealthResponse(BaseModel):
+    status: str = Field(..., description='"ok" or "degraded"')
+    components: dict = Field(..., description="Per-component status: {llm, rag, logger}")
+
+
+class ErrorResponse(BaseModel):
+    """
+    Normalized error shape.
+    Maps to TypeScript ApiError in web-app/types/api.ts.
+    Field mapping handled by Next.js proxy: error→code, trace_id→requestId.
+    """
+    error: str = Field(..., description="Error code / type identifier")
+    message: str = Field(..., description="Human-readable error description")
+    trace_id: str | None = Field(None, description="Request trace ID if available")
+    timestamp: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
+        description="ISO 8601 timestamp of when the error occurred",
+    )

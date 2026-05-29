@@ -129,6 +129,13 @@ export type UpdateDocumentResponse = Document
 // --- DELETE /api/documents/[id] ---
 // No request body, no response body — 204 No Content
 
+// --- GET /api/retrieve ---
+
+export type RetrieveResponse = {
+  readonly chunks: readonly Source[]
+  readonly traceId: string
+}
+
 // --- GET /api/queries ---
 
 export type QueryListRequest = {
