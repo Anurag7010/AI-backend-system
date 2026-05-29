@@ -1,108 +1,63 @@
 import { BaseService, ServiceResponse } from './base-service'
 import type {
-  AskRequest,
   AskResponse,
   IngestResponse,
+  RetrieveResponse,
+  DocumentSummary,
+  DocumentId,
+  Message,
 } from '../types'
+import { toDocumentId } from '../types'
 import { isAskResponse, isIngestResponse } from '../lib/type-guards'
+import { parseSSEStream, type SSEEvent } from '../lib/sse-parser'
 
-// RetrieveResponse stays local — not yet in types/ (added in a later block)
-interface RetrieveResponse {
-  chunks: Array<{
-    content: string
-    score: number
-    metadata: Record<string, unknown>
-  }>
-}
-
-export interface IngestRequest {
-  file: File
-  signal?: AbortSignal
-}
-
-export interface RetrieveRequest {
+export interface AskOptions {
   query: string
-  top_k?: number
+  history?: readonly Message[]
+  signal?: AbortSignal
+  topK?: number
   strategy?: string
+  documentId?: string
 }
 
 export class AIService extends BaseService {
   constructor() {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_AI_BACKEND_URL ?? 'http://localhost:8000'
-
-    super(baseUrl, {
+    // baseUrl is empty — calls same-origin Next.js API routes.
+    // Browser never calls the Python backend directly.
+    super('', {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     })
   }
 
+  // POST /api/ask
+  // Returns AskResponse directly (route handler does not wrap in { data: ... })
   async ask({
     query,
     history = [],
     signal,
-  }: AskRequest): Promise<ServiceResponse<AskResponse>> {
-    // Type as unknown — validate shape before trusting it
-    const response = await this.request<unknown>('/ask', {
+    topK = 5,
+    strategy = 'semantic',
+    documentId,
+  }: AskOptions): Promise<ServiceResponse<AskResponse>> {
+    const response = await this.request<unknown>('/api/ask', {
       method: 'POST',
-      body: { query, history },
-      signal,
-      deduplicate: false,
-      timeoutMs: 30_000,
-      maxAttempts: 2,
-    })
-
-    if (response.error) {
-      return response as ServiceResponse<AskResponse>
-    }
-
-    // Validate shape — AI backend could return anything
-    if (!isAskResponse(response.data)) {
-      return {
-        data: null,
-        error: {
-          name: 'ServiceError',
-          code: 'PARSE_ERROR',
-          message: 'AI backend returned unexpected response shape',
-          retryable: false,
-          originalError: response.data,
-        } as any,
-        status: response.status,
-        latencyMs: response.latencyMs,
-      }
-    }
-
-    return { ...response, data: response.data }
-  }
-
-  async ingest({
-    file,
-    signal,
-  }: IngestRequest): Promise<ServiceResponse<IngestResponse>> {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('filename', file.name)
-
-    const response = await this.request<unknown>('/ingest', {
-      method: 'POST',
-      body: formData,
+      body: { query, history, topK, strategy, ...(documentId ? { documentId } : {}) },
       signal,
       deduplicate: false,
       timeoutMs: 60_000,
       maxAttempts: 2,
     })
 
-    if (response.error) {
-      return response as ServiceResponse<IngestResponse>
-    }
+    if (response.error) return response as ServiceResponse<AskResponse>
 
-    if (!isIngestResponse(response.data)) {
+    if (!isAskResponse(response.data)) {
       return {
         data: null,
         error: {
           name: 'ServiceError',
           code: 'PARSE_ERROR',
-          message: 'Unexpected ingest response shape',
+          message: 'Unexpected response shape from /api/ask',
           retryable: false,
           originalError: response.data,
         } as any,
@@ -114,22 +69,148 @@ export class AIService extends BaseService {
     return { ...response, data: response.data }
   }
 
-  async retrieve({
-    query,
-    top_k = 5,
-    strategy = 'semantic',
-  }: RetrieveRequest): Promise<ServiceResponse<RetrieveResponse>> {
+  // POST /api/ask/stream — returns typed SSE events as an async generator.
+  // Uses plain fetch (not BaseService.request) because we need the raw response body.
+  async *askStream(
+    query: string,
+    history: Message[] = [],
+    signal?: AbortSignal,
+    options?: { topK?: number; strategy?: string; documentId?: string }
+  ): AsyncGenerator<SSEEvent> {
+    let response: Response
+    try {
+      response = await fetch('/api/ask/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify({
+          query,
+          history,
+          topK: options?.topK ?? 5,
+          strategy: options?.strategy ?? 'semantic',
+          ...(options?.documentId ? { documentId: options.documentId } : {}),
+        }),
+        signal,
+      })
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+      yield {
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Network error',
+      }
+      return
+    }
+
+    if (!response.ok || !response.body) {
+      yield { type: 'error', message: `Request failed: ${response.status}` }
+      return
+    }
+
+    try {
+      for await (const event of parseSSEStream(response.body)) {
+        if (signal?.aborted) return
+        yield event
+      }
+    } catch (err) {
+      if (signal?.aborted) return
+      yield {
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Stream error',
+      }
+    }
+  }
+
+  // POST /api/documents (multipart/form-data)
+  // Returns { data: IngestResponse, requestId } — extract .data
+  async ingest(
+    file: File,
+    signal?: AbortSignal
+  ): Promise<ServiceResponse<IngestResponse>> {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await this.request<unknown>('/api/documents', {
+      method: 'POST',
+      body: formData,
+      signal,
+      deduplicate: false,
+      timeoutMs: 120_000,
+      maxAttempts: 1,
+    })
+
+    if (response.error) return response as ServiceResponse<IngestResponse>
+
+    // Route returns { data: IngestResponse, requestId } — unwrap
+    const inner = (response.data as any)?.data
+    if (!isIngestResponse(inner)) {
+      return {
+        data: null,
+        error: {
+          name: 'ServiceError',
+          code: 'PARSE_ERROR',
+          message: 'Unexpected response shape from /api/documents',
+          retryable: false,
+          originalError: response.data,
+        } as any,
+        status: response.status,
+        latencyMs: response.latencyMs,
+      }
+    }
+
+    return { ...response, data: inner }
+  }
+
+  // GET /api/retrieve?query=...&top_k=...&strategy=...
+  // Returns { data: RetrieveResponse, requestId } — extract .data
+  async retrieve(
+    query: string,
+    topK = 5,
+    strategy = 'semantic'
+  ): Promise<ServiceResponse<RetrieveResponse>> {
     const params = new URLSearchParams({
       query,
-      top_k: String(top_k),
+      top_k: String(topK),
       strategy,
     })
 
-    return this.request<RetrieveResponse>(`/retrieve?${params.toString()}`, {
+    const response = await this.request<unknown>(`/api/retrieve?${params}`, {
+      method: 'GET',
+      deduplicate: true,
+      timeoutMs: 15_000,
+      maxAttempts: 3,
+    })
+
+    if (response.error) return response as ServiceResponse<RetrieveResponse>
+
+    const inner = (response.data as any)?.data as RetrieveResponse
+    return { ...response, data: inner }
+  }
+
+  // GET /api/documents
+  // Returns { data: DocumentSummary[], requestId } — extract .data
+  async getDocuments(): Promise<ServiceResponse<DocumentSummary[]>> {
+    const response = await this.request<unknown>('/api/documents', {
       method: 'GET',
       deduplicate: true,
       timeoutMs: 10_000,
       maxAttempts: 3,
+    })
+
+    if (response.error) return response as ServiceResponse<DocumentSummary[]>
+
+    const inner = (response.data as any)?.data as DocumentSummary[]
+    return { ...response, data: inner }
+  }
+
+  // DELETE /api/documents/[id]
+  async deleteDocument(id: DocumentId): Promise<ServiceResponse<void>> {
+    return this.request<void>(`/api/documents/${id}`, {
+      method: 'DELETE',
+      deduplicate: false,
+      timeoutMs: 10_000,
+      maxAttempts: 2,
     })
   }
 }

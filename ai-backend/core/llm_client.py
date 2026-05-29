@@ -11,9 +11,9 @@ Public functions:
 
 import json
 import time
-from typing import Any, Type, TypeVar
+from typing import Any, AsyncGenerator, Type, TypeVar
 
-from openai import OpenAI, APIStatusError, APITimeoutError, APIConnectionError
+from openai import AsyncOpenAI, OpenAI, APIStatusError, APITimeoutError, APIConnectionError
 from pydantic import BaseModel
 
 from core.config import config
@@ -34,6 +34,7 @@ _RETRYABLE = (APIStatusError, APITimeoutError, APIConnectionError)
 T = TypeVar("T", bound=BaseModel)
 
 _client = OpenAI(api_key=config.OPENAI_API_KEY)
+_async_client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
 
 
 def _estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
@@ -181,3 +182,66 @@ def call_llm_structured(
     except Exception as exc:
         logger.error(f"[llm] JSON failed schema '{schema.__name__}': {exc}")
         raise ValueError(f"LLM output failed schema validation: {exc}") from exc
+
+
+async def stream(
+    prompt: str,
+    *,
+    system: str = "You are a helpful assistant.",
+    model: str | None = None,
+    temperature: float | None = None,
+    trace_id: str | None = None,
+) -> AsyncGenerator[str, None]:
+    """
+    Stream tokens from the LLM one by one.
+
+    Yields each token string as it arrives. Logs start/end with trace_id and latency.
+    Re-raises on error — caller sends the error SSE event.
+    No retry: streaming is stateful; retrying would duplicate tokens.
+    """
+    resolved_model = model or config.MODEL_NAME
+    resolved_temp = temperature if temperature is not None else config.TEMPERATURE
+    resolved_tokens = config.MAX_TOKENS
+    resolved_tid = trace_id or ""
+
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": prompt},
+    ]
+
+    t0 = time.perf_counter()
+    token_count = 0
+    logger.info("[llm] stream_start", extra={"trace_id": resolved_tid, "model": resolved_model})
+
+    try:
+        response = await _async_client.chat.completions.create(
+            model=resolved_model,
+            messages=messages,
+            temperature=resolved_temp,
+            max_tokens=resolved_tokens,
+            stream=True,
+        )
+        async for chunk in response:
+            choice = chunk.choices[0] if chunk.choices else None
+            if not choice:
+                continue
+            if choice.finish_reason == "length":
+                logger.warning("[llm] stream truncated: finish_reason=length", extra={"trace_id": resolved_tid})
+                continue
+            delta_content = choice.delta.content if choice.delta else None
+            if delta_content is not None:
+                token_count += 1
+                yield delta_content
+
+        latency_ms = (time.perf_counter() - t0) * 1000
+        logger.info(
+            "[llm] stream_end",
+            extra={"trace_id": resolved_tid, "token_count": token_count, "latency_ms": round(latency_ms, 2)},
+        )
+    except Exception as exc:
+        latency_ms = (time.perf_counter() - t0) * 1000
+        logger.error(
+            "[llm] stream_error",
+            extra={"trace_id": resolved_tid, "error": str(exc), "latency_ms": round(latency_ms, 2)},
+        )
+        raise

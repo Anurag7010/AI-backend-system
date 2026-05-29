@@ -1,20 +1,46 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useAsyncState } from './useAsyncState'
 import { useAbortController } from './useAbortController'
 import { aiService } from '../services/ai-service'
 import { CancellationError } from '../lib/async'
-import type { Message, AskResponse } from '../types'
+import type { Message, AskResponse, Source } from '../types'
 import type { AsyncState } from '../types'
 
 export function useAsk(): {
   state: AsyncState<AskResponse>
   messages: Message[]
   ask: (query: string) => Promise<void>
+  askStream: (query: string) => Promise<void>
   clearHistory: () => void
+  isStreaming: boolean
 } {
   const { state, execute, reset } = useAsyncState<AskResponse>()
   const abortCtrl = useAbortController()
   const [messages, setMessages] = useState<Message[]>([])
+  const [isStreaming, setIsStreaming] = useState(false)
+
+  // Token batching: accumulate tokens in a ref and flush to state every 16ms.
+  // Without batching: every token triggers a setState + re-render cycle (60+ fps).
+  // With batching: we cap re-renders to ~60 fps while still showing tokens fast.
+  const tokenBuffer = useRef('')
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const flushTokens = useCallback(() => {
+    if (!tokenBuffer.current) return
+    const flushed = tokenBuffer.current
+    tokenBuffer.current = ''
+    setMessages(prev => {
+      if (prev.length === 0) return prev
+      const last = prev[prev.length - 1]
+      if (last.role !== 'assistant') return prev
+      return [...prev.slice(0, -1), { ...last, content: last.content + flushed }]
+    })
+  }, [])
+
+  const scheduleFlush = useCallback(() => {
+    if (flushTimer.current) clearTimeout(flushTimer.current)
+    flushTimer.current = setTimeout(flushTokens, 16)
+  }, [flushTokens])
 
   const ask = useCallback(async (query: string) => {
     // If a previous ask is in-flight, abort it before starting a new one.
@@ -63,12 +89,91 @@ export function useAsk(): {
     })
   }, [messages, execute, abortCtrl])
 
+  const askStream = useCallback(async (query: string) => {
+    abortCtrl.abort()
+    abortCtrl.reset()
+    const currentSignal = abortCtrl.signal
+
+    const historyBeforeThisMessage = [...messages]
+
+    // Clear any pending token flush from a previous stream
+    if (flushTimer.current) clearTimeout(flushTimer.current)
+    tokenBuffer.current = ''
+
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', content: query },
+      { role: 'assistant', content: '' },  // placeholder for streaming tokens
+    ])
+    setIsStreaming(true)
+    reset()  // reset to idle so state.status === 'loading' via execute
+
+    let sources: Source[] = []
+    let streamError: string | null = null
+
+    await execute(async () => {
+      const generator = aiService.askStream(
+        query,
+        historyBeforeThisMessage,
+        currentSignal,
+      )
+
+      for await (const event of generator) {
+        if (currentSignal.aborted) break
+
+        if (event.type === 'token') {
+          tokenBuffer.current += event.content
+          scheduleFlush()
+        } else if (event.type === 'sources') {
+          sources = event.sources
+        } else if (event.type === 'done') {
+          // Flush any remaining buffered tokens synchronously before settling
+          if (flushTimer.current) {
+            clearTimeout(flushTimer.current)
+            flushTimer.current = null
+          }
+          flushTokens()
+          break
+        } else if (event.type === 'error') {
+          streamError = event.message
+          break
+        }
+      }
+
+      // Always flush remaining tokens on generator exit
+      if (flushTimer.current) {
+        clearTimeout(flushTimer.current)
+        flushTimer.current = null
+      }
+      flushTokens()
+      setIsStreaming(false)
+
+      if (currentSignal.aborted) throw new CancellationError('stream aborted')
+      if (streamError) throw new Error(streamError)
+
+      // Build a synthetic AskResponse from the streamed content
+      // Read the final assistant message content from state (after flush)
+      return {
+        answer: '',    // hook consumers read from messages[], not from state.data
+        sources,
+        traceId: '',
+        latencyBreakdown: { retrievalMs: 0, generationMs: 0, totalMs: 0 },
+      } satisfies AskResponse
+    })
+  }, [messages, execute, reset, abortCtrl, scheduleFlush, flushTokens])
+
   const clearHistory = useCallback(() => {
+    if (flushTimer.current) {
+      clearTimeout(flushTimer.current)
+      flushTimer.current = null
+    }
+    tokenBuffer.current = ''
     setMessages([])
+    setIsStreaming(false)
     reset()
     abortCtrl.abort()
     abortCtrl.reset()
   }, [reset, abortCtrl])
 
-  return { state, messages, ask, clearHistory }
+  return { state, messages, ask, askStream, clearHistory, isStreaming }
 }
