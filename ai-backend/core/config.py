@@ -46,11 +46,17 @@ class Config:
 
     # ── Observability ─────────────────────────────────────────────────────────
     LOG_LEVEL: str
+    LOG_FILE: str
 
     # ── Internal API key ──────────────────────────────────────────────────────
     # Shared secret between Next.js and this Python backend.
     # Next.js sends it as X-API-Key on every proxied request.
     INTERNAL_API_KEY: str
+
+    # ── Guardrails ────────────────────────────────────────────────────────────
+    MAX_QUERY_CHARS: int
+    FAST_MODEL: str
+    RELEVANCE_THRESHOLD: float
 
     @classmethod
     def load(cls) -> "Config":
@@ -64,7 +70,11 @@ class Config:
             DEFAULT_CHUNK_SIZE          = int(_optional("DEFAULT_CHUNK_SIZE",       "500")),
             DEFAULT_RETRIEVAL_STRATEGY  = _optional("DEFAULT_RETRIEVAL_STRATEGY",  "semantic"),
             LOG_LEVEL                   = _optional("LOG_LEVEL",                   "INFO"),
+            LOG_FILE                    = _optional("LOG_FILE",                    "logs/ai_backend.log"),
             INTERNAL_API_KEY            = _optional("INTERNAL_API_KEY",            "dev-internal-key-change-in-production"),
+            MAX_QUERY_CHARS             = int(_optional("MAX_QUERY_CHARS",         "2000")),
+            FAST_MODEL                  = _optional("FAST_MODEL",                  "gpt-4o-mini"),
+            RELEVANCE_THRESHOLD         = float(_optional("RELEVANCE_THRESHOLD",   "0.65")),
         )
 
 

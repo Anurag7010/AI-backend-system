@@ -16,6 +16,7 @@ import logging
 import sys
 import traceback
 from datetime import datetime, timezone
+from pathlib import Path
 
 
 # ── JSON formatter ────────────────────────────────────────────────────────────
@@ -63,12 +64,21 @@ def get_logger(name: str) -> logging.Logger:
     from core.config import config
     level = getattr(logging, config.LOG_LEVEL.upper(), logging.INFO)
 
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(level)
-    handler.setFormatter(_JSONFormatter())
+    formatter = _JSONFormatter()
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(level)
+    stdout_handler.setFormatter(formatter)
+
+    log_path = Path(config.LOG_FILE)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    file_handler = logging.FileHandler(log_path)
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
 
     logger.setLevel(level)
-    logger.addHandler(handler)
+    logger.addHandler(stdout_handler)
+    logger.addHandler(file_handler)
     logger.propagate = False
     return logger
 

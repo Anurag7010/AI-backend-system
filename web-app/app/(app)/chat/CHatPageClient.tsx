@@ -2,10 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChatInterface } from "@/components/features/ChatInterface";
+import dynamic from "next/dynamic";
 import { DocumentStatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Spinner } from "@/components/ui/Spinner";
 import type { DocumentStatus } from "@/types";
+
+// Dynamic import — ChatInterface depends on useAsk (EventSource/SSE streaming) and
+// other browser-only APIs that must not run during SSR.
+const ChatInterface = dynamic(
+  () =>
+    import("@/components/features/ChatInterface").then(
+      (m) => m.ChatInterface,
+    ),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center h-full">
+        <Spinner size="lg" />
+      </div>
+    ),
+    ssr: false,
+  },
+);
 
 interface ChatPageClientProps {
   documentId: string | undefined;

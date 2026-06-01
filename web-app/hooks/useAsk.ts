@@ -83,7 +83,9 @@ export function useAsk(): {
       // Append assistant message only on success.
       // On error we do not append — no fake or empty assistant message
       // appears in the chat. The error surfaces in state.error instead.
-      setMessages(prev => [...prev, { role: 'assistant', content: data.answer }])
+      // Guardrail rejections and no-results are visually distinguished via 'warning' role.
+      const messageRole = (data.guardrailRejected || data.noResults) ? 'warning' : 'assistant'
+      setMessages(prev => [...prev, { role: messageRole, content: data.answer, sources: data.sources }])
 
       return data
     })
@@ -153,12 +155,29 @@ export function useAsk(): {
 
       // Build a synthetic AskResponse from the streamed content
       // Read the final assistant message content from state (after flush)
-      return {
+      const synthResponse: AskResponse = {
         answer: '',    // hook consumers read from messages[], not from state.data
         sources,
         traceId: '',
         latencyBreakdown: { retrievalMs: 0, generationMs: 0, totalMs: 0 },
-      } satisfies AskResponse
+        guardrailRejected: false,
+        noResults: false,
+        retrievalQuality: { quality: 'good', maxScore: 0, avgScore: 0, chunkCount: 0 },
+      }
+
+      // Attach sources and apply warning role if guardrail rejected or no results
+      const streamedMessageRole = (synthResponse.guardrailRejected || synthResponse.noResults) ? 'warning' : 'assistant'
+      setMessages(prev => {
+        if (prev.length === 0) return prev
+        const last = prev[prev.length - 1]
+        if (last.role !== 'assistant') return prev
+        return [
+          ...prev.slice(0, -1),
+          { ...last, role: streamedMessageRole, ...(sources.length > 0 ? { sources } : {}) },
+        ]
+      })
+
+      return synthResponse
     })
   }, [messages, execute, reset, abortCtrl, scheduleFlush, flushTokens])
 

@@ -23,6 +23,7 @@ class AskRequest(BaseModel):
     top_k: int = Field(5, ge=1, le=20, description="Number of document chunks to retrieve")
     strategy: str = Field("semantic", description="Retrieval strategy: semantic | hybrid | multi_query | rrf")
     history: list[dict] | None = Field(None, description="Chat history as list of {role, content} dicts")
+    use_multi_query: bool = Field(False, description="Whether to generate query variants for multi-query retrieval")
 
 
 class IngestRequest(BaseModel):
@@ -43,6 +44,7 @@ class SourceResponse(BaseModel):
     content: str = Field(..., description="Text content of the retrieved chunk")
     score: float | None = Field(None, description="Relevance score from the vectorstore")
     metadata: dict = Field(default_factory=dict, description="Source metadata: file, chunk_index, etc.")
+    citation_id: int | None = Field(None, description="[Source N] citation number matching inline answer text")
 
 
 class AskResponse(BaseModel):
@@ -50,6 +52,9 @@ class AskResponse(BaseModel):
     sources: list[SourceResponse] = Field(..., description="Document chunks used to generate the answer")
     trace_id: str = Field(..., description="Request trace ID for observability correlation")
     latency_breakdown: dict = Field(..., description="{retrieval_ms, generation_ms, total_ms}")
+    guardrail_rejected: bool = Field(False, description="True if the query was rejected by guardrails")
+    no_results: bool = Field(False, description="True if no relevant document chunks were found")
+    retrieval_quality: dict = Field(default_factory=dict, description="{quality, max_score, avg_score, chunk_count}")
 
 
 class IngestResponse(BaseModel):

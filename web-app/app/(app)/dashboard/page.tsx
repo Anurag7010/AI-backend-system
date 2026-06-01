@@ -11,6 +11,16 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import type { Query } from "@/types";
 
+interface AiStats {
+  avgLatencyMs: number;
+  errorRate: number;
+  cacheHitRate: number;
+  estimatedCostUsd: number;
+  totalTokens: number;
+  slowQueries: number;
+  failedRetrievals: number;
+}
+
 export const metadata: Metadata = { title: "Dashboard" };
 
 // RecentQueriesList — Server Component, defined in same file.
@@ -89,6 +99,25 @@ export default async function DashboardPage() {
     queriesRepository.findByUser(session.userId, 50),
   ]);
 
+  // Fetch AI metrics from stats endpoint — non-fatal if backend is down
+  let aiStats: AiStats | null = null
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+    const statsRes = await fetch(`${appUrl}/api/dashboard/stats`, {
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        'X-Request-ID': crypto.randomUUID(),
+      },
+      next: { revalidate: 30 },
+    })
+    if (statsRes.ok) {
+      const statsData = await statsRes.json() as { ai: AiStats | null }
+      aiStats = statsData.ai
+    }
+  } catch {
+    // Non-fatal — dashboard still works without AI metrics
+  }
+
   const totalDocs = allDocuments.length;
   const ingestedDocs = allDocuments.filter(
     (d) => d.status === "ingested",
@@ -131,6 +160,53 @@ export default async function DashboardPage() {
           description="Queries made"
         />
       </div>
+
+      {/* AI Observability */}
+      {aiStats && (
+        <Card>
+          <Card.Header>
+            <Card.Title>AI Observability</Card.Title>
+            <Card.Description>Last 24 hours</Card.Description>
+          </Card.Header>
+          <Card.Content>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              <StatCard
+                label="Avg Response"
+                value={`${aiStats.avgLatencyMs}ms`}
+                description="LLM latency"
+              />
+              <StatCard
+                label="Cache Hit"
+                value={`${(aiStats.cacheHitRate * 100).toFixed(0)}%`}
+                description="Cache efficiency"
+              />
+              <StatCard
+                label="Est. Cost"
+                value={`$${aiStats.estimatedCostUsd.toFixed(4)}`}
+                description="Today (USD)"
+              />
+              <StatCard
+                label="Error Rate"
+                value={`${(aiStats.errorRate * 100).toFixed(1)}%`}
+                description="LLM errors"
+                valueClassName={aiStats.errorRate > 0.05 ? 'text-error-500' : undefined}
+              />
+              <StatCard
+                label="Slow Queries"
+                value={aiStats.slowQueries}
+                description=">5s response"
+                valueClassName={aiStats.slowQueries > 0 ? 'text-warning-500' : undefined}
+              />
+              <StatCard
+                label="Failed RAG"
+                value={aiStats.failedRetrievals}
+                description="Empty retrieval"
+                valueClassName={aiStats.failedRetrievals > 0 ? 'text-error-500' : undefined}
+              />
+            </div>
+          </Card.Content>
+        </Card>
+      )}
 
       {/* Recent activity */}
       <Card>

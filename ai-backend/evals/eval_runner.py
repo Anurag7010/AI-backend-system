@@ -8,8 +8,7 @@ Public functions:
     evaluate(test_case)          → dict (single result)
     run_all(test_cases)          → dict (summary + all results)
 """
-import time
-
+import asyncio
 from dataclasses import dataclass, field
 
 from observability.logger import get_logger
@@ -25,19 +24,25 @@ class TestCase:
     expected_sources:  list[str] = field(default_factory=list)
 
 
-def evaluate(test_case: TestCase) -> dict:
+async def evaluate(test_case: TestCase) -> dict:
     """
     Run a single TestCase through the RAG pipeline and score it.
 
     Returns:
-        {query, answer, keyword_score, source_match, has_answer, passed, error}
+        {query, answer, keyword_score, source_match, has_answer, passed, error,
+         retrieval_quality, guardrail_rejected, no_results, prompt_version}
     """
     from rag.rag_interface import ask
 
-    result = ask(test_case.query)
+    result = await ask(test_case.query)
     answer = result.get("answer", "")
     error  = result.get("error")
     sources = result.get("sources", [])
+
+    retrieval_quality  = result.get("retrieval_quality", {})
+    guardrail_rejected = result.get("guardrail_rejected", False)
+    no_results         = result.get("no_results", False)
+    prompt_version     = result.get("prompt_version", "unknown")
 
     has_answer = bool(answer and not error)
 
@@ -68,33 +73,50 @@ def evaluate(test_case: TestCase) -> dict:
         f"keyword_score={keyword_score:.2f} passed={passed}"
     )
     return {
-        "query":         test_case.query,
-        "answer":        answer[:300] if answer else "",
-        "keyword_score": round(keyword_score, 3),
-        "source_match":  source_match,
-        "has_answer":    has_answer,
-        "passed":        passed,
-        "error":         error,
+        "query":              test_case.query,
+        "answer":             answer[:300] if answer else "",
+        "keyword_score":      round(keyword_score, 3),
+        "source_match":       source_match,
+        "has_answer":         has_answer,
+        "passed":             passed,
+        "error":              error,
+        "retrieval_quality":  retrieval_quality,
+        "guardrail_rejected": guardrail_rejected,
+        "no_results":         no_results,
+        "prompt_version":     prompt_version,
     }
 
 
-def run_all(test_cases: list[TestCase]) -> dict:
+async def run_all(test_cases: list[TestCase]) -> dict:
     """
     Run all test cases and print a summary table to stdout.
 
     Returns:
-        {results, total, passed, pass_rate}
+        {results, total, passed, pass_rate, avg_retrieval_quality,
+         guardrail_rejection_rate, no_result_rate, prompt_versions}
     """
     results = []
     for tc in test_cases:
-        results.append(evaluate(tc))
-        time.sleep(5)
+        results.append(await evaluate(tc))
+        await asyncio.sleep(5)
     total   = len(results)
     passed  = sum(1 for r in results if r["passed"])
 
+    avg_retrieval_quality = round(
+        sum(r.get("retrieval_quality", {}).get("max_score", 0.0) for r in results) / total, 3
+    ) if total else 0.0
+    guardrail_rejection_rate = round(
+        sum(1 for r in results if r.get("guardrail_rejected")) / total, 3
+    ) if total else 0.0
+    no_result_rate = round(
+        sum(1 for r in results if r.get("no_results")) / total, 3
+    ) if total else 0.0
+    prompt_versions = list({r.get("prompt_version", "unknown") for r in results})
+
     # ── Summary table ─────────────────────────────────────────────────────────
     print("\n" + "=" * 72)
-    print(f"  EVAL SUMMARY — {passed}/{total} passed  ({100*passed/total:.0f}%)")
+    pct = f"{100*passed/total:.0f}%" if total else "N/A"
+    print(f"  EVAL SUMMARY — {passed}/{total} passed  ({pct})")
     print("=" * 72)
     print(f"  {'#':<3}  {'PASS':<5}  {'KW':>5}  {'SRC':<5}  QUERY")
     print("-" * 72)
@@ -103,11 +125,20 @@ def run_all(test_cases: list[TestCase]) -> dict:
         src_flag = "✓" if r["source_match"] else "✗"
         query_preview = r["query"][:45]
         print(f"  {i:<3}  {status:<5}  {r['keyword_score']:>5.2f}  {src_flag:<5}  {query_preview}")
+    print("-" * 72)
+    print(f"  Avg retrieval quality : {avg_retrieval_quality:.3f}")
+    print(f"  Guardrail rejection   : {guardrail_rejection_rate:.3f}")
+    print(f"  No-result rate        : {no_result_rate:.3f}")
+    print(f"  Prompt versions       : {', '.join(prompt_versions)}")
     print("=" * 72 + "\n")
 
     return {
-        "results":   results,
-        "total":     total,
-        "passed":    passed,
-        "pass_rate": round(passed / total, 3) if total else 0.0,
+        "results":                  results,
+        "total":                    total,
+        "passed":                   passed,
+        "pass_rate":                round(passed / total, 3) if total else 0.0,
+        "avg_retrieval_quality":    avg_retrieval_quality,
+        "guardrail_rejection_rate": guardrail_rejection_rate,
+        "no_result_rate":           no_result_rate,
+        "prompt_versions":          prompt_versions,
     }

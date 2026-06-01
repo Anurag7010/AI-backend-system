@@ -66,8 +66,8 @@ def _normalize_source(chunk: dict) -> SourceResponse:
 
 # ── GET /health ───────────────────────────────────────────────────────────────
 
-@router.get("/health", response_model=HealthResponse, tags=["system"])
-async def health(request: Request) -> HealthResponse:
+@router.get("/health", tags=["system"])
+async def health(request: Request) -> JSONResponse:
     """
     Component-level health check.
 
@@ -108,7 +108,16 @@ async def health(request: Request) -> HealthResponse:
         components["rag"] = f"error: {exc}"
 
     overall = "ok" if all(v == "ok" for v in components.values()) else "degraded"
-    return HealthResponse(status=overall, components=components)
+
+    from core.cache import retrieval_cache, llm_cache
+    return JSONResponse(content={
+        "status": overall,
+        "components": components,
+        "cache": {
+            "retrieval": retrieval_cache.stats,
+            "llm": llm_cache.stats,
+        },
+    })
 
 
 # ── POST /ask ─────────────────────────────────────────────────────────────────
@@ -123,36 +132,27 @@ async def ask(body: AskRequest, request: Request) -> AskResponse | JSONResponse:
     """
     trace_id: str = getattr(request.state, "trace_id", new_trace_id())
     try:
-        from rag.rag_interface import ask as rag_ask, retrieve as rag_retrieve
+        from rag.rag_interface import ask as rag_ask
 
-        # Generate answer (internally does retrieval + generation)
-        result = rag_ask(
+        result = await rag_ask(
             query=body.query,
             history=body.history,
             trace_id=trace_id,
         )
 
         if result.get("error"):
-            logger.error(
-                "ask_pipeline_error",
-                extra={"trace_id": trace_id, "error": result["error"]},
-            )
-            return _error_response(
-                "pipeline_error", result["error"], trace_id, 500
-            )
+            logger.error("ask_pipeline_error", extra={"trace_id": trace_id, "error": result["error"]})
+            return _error_response("pipeline_error", result["error"], trace_id, 500)
 
-        # Retrieve chunks separately for rich SourceResponse objects.
-        # ask() returns only source file paths; retrieve() returns {content, score, metadata}.
-        # This adds one extra vector search (no extra LLM call).
-        raw_chunks = rag_retrieve(
-            query=body.query,
-            top_k=body.top_k,
-            strategy=body.strategy,
-        )
-        # Filter out any error dicts that retrieve() may return on partial failure
+        # Build SourceResponse list from used_chunks (which now include citation_id)
         sources = [
-            _normalize_source(c)
-            for c in raw_chunks
+            SourceResponse(
+                content=c.get("content", ""),
+                score=c.get("score"),
+                metadata=c.get("metadata", {}),
+                citation_id=c.get("citation_id"),
+            )
+            for c in result.get("sources", [])
             if "error" not in c
         ]
 
@@ -161,14 +161,13 @@ async def ask(body: AskRequest, request: Request) -> AskResponse | JSONResponse:
             sources=sources,
             trace_id=result["trace_id"],
             latency_breakdown=result["latency_breakdown"],
+            guardrail_rejected=result.get("guardrail_rejected", False),
+            no_results=result.get("no_results", False),
+            retrieval_quality=result.get("retrieval_quality", {}),
         )
 
     except Exception as exc:
-        logger.error(
-            "ask_unhandled_error",
-            extra={"trace_id": trace_id, "error": str(exc)},
-            exc_info=True,
-        )
+        logger.error("ask_unhandled_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True)
         return _error_response("ask_failed", str(exc), trace_id, 500)
 
 
@@ -198,10 +197,7 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
             from rag.rag_interface import retrieve as rag_retrieve
             from core.llm_client import stream as llm_stream
 
-            # Retrieval is synchronous — run in thread pool to avoid blocking the event loop
-            chunks: list[dict] = await asyncio.to_thread(
-                rag_retrieve, body.query, body.top_k, body.strategy
-            )
+            chunks: list[dict] = await rag_retrieve(body.query, body.top_k, body.strategy)
             valid_chunks = [c for c in chunks if "error" not in c]
 
             # Build plain-text context from retrieved dicts
@@ -361,7 +357,7 @@ async def retrieve(
     try:
         from rag.rag_interface import retrieve as rag_retrieve
 
-        raw_chunks = rag_retrieve(query=query, top_k=top_k, strategy=strategy)
+        raw_chunks = await rag_retrieve(query=query, top_k=top_k, strategy=strategy)
 
         # Check if retrieve() returned an error list
         if raw_chunks and "error" in raw_chunks[0]:
@@ -382,3 +378,36 @@ async def retrieve(
             exc_info=True,
         )
         return _error_response("retrieve_failed", str(exc), trace_id, 500)
+
+
+# ── GET /cache/stats ──────────────────────────────────────────────────────────
+
+@router.get("/cache/stats", tags=["system"])
+async def cache_stats(request: Request) -> JSONResponse:
+    """Return current cache hit rates and sizes."""
+    from core.cache import retrieval_cache, llm_cache
+    return JSONResponse(content={
+        "retrieval": retrieval_cache.stats,
+        "llm": llm_cache.stats,
+    })
+
+
+# ── POST /cache/clear ─────────────────────────────────────────────────────────
+
+@router.post("/cache/clear", tags=["system"])
+async def cache_clear(request: Request) -> JSONResponse:
+    """Clear all caches. Use after bulk document re-ingestion."""
+    from core.cache import retrieval_cache, llm_cache
+    retrieval_cache.clear()
+    llm_cache.clear()
+    return JSONResponse(content={"cleared": True})
+
+
+# ── GET /metrics ──────────────────────────────────────────────────────────────
+
+@router.get("/metrics", tags=["system"])
+async def get_metrics(hours: int = 24) -> JSONResponse:
+    """Return aggregated AI system metrics from structured logs."""
+    from observability.metrics import compute_metrics
+    metrics = compute_metrics(since_hours=hours)
+    return JSONResponse(content=metrics)

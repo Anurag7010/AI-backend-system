@@ -77,7 +77,7 @@ export class SSEParser {
           const src = s as Record<string, unknown>
           return {
             content: typeof src['content'] === 'string' ? src['content'] : '',
-            score: typeof src['score'] === 'number' ? src['score'] : 0,
+            score: typeof src['score'] === 'number' ? src['score'] : null,
             metadata: (src['metadata'] as Record<string, unknown>) ?? {},
           }
         })

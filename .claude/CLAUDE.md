@@ -38,7 +38,45 @@ Three interconnected systems:
   - backend-client.ts forwards X-User-ID header to Python backend
   - 17 JWT tests, 10 password tests, 13 auth route tests — all passing
   - Timing attack prevention in login (always calls verifyPassword)
-- Next: Day 9 — Caching + Performance + AI Observability
+- Days 20-21 (Day 9): Caching + Performance + AI Observability — COMPLETE
+  - LRUCache with TTL + LRU eviction (core/cache.py); retrieval_cache (5min) + llm_cache (1hr)
+  - Caching added to retrieve() and ask() in rag_interface.py — cache_hit/cache_miss log events
+  - Python logger now writes to file + stdout (observability/logger.py); LOG_FILE in config
+  - Log aggregation: compute_metrics() reads structured logs → dashboard metrics (observability/metrics.py)
+  - New Python endpoints: GET /cache/stats, POST /cache/clear, GET /metrics
+  - GET /health updated to include cache stats
+  - backendClient.getMetrics() added; AIMetrics type in types/api.ts
+  - GET /api/dashboard/stats — aggregates DB + AI metrics in parallel (app/api/dashboard/stats/)
+  - revalidateTag('documents') on document POST/DELETE mutations
+  - Dashboard page: real AI Observability section (latency, cache hit rate, cost, error rate)
+  - Dynamic imports: DocumentUploadModal and ChatInterface (ssr: false)
+  - All required DB indexes confirmed present in schema.ts
+  - 19 Python tests, 6 TypeScript dashboard tests — all passing
+- Days 22-24 (Day 10): Prompt Reliability + Guardrails + RAG Quality — COMPLETE
+  - Prompt registry (core/prompt_registry.py): 5 versioned prompts, single source of truth
+  - Output validator (core/output_validator.py): JSON + prose validation, schema enforcement
+  - LLM client: complete_with_fallback() with validation retry chain (max 2 attempts)
+  - Guardrails (core/guardrails.py): sanitize_input (10 injection patterns, abbreviation expansion, 2000 char limit), sanitize_output (PII removal, disclaimer stripping), async check_query with optional off-topic LLM check
+  - Config: MAX_QUERY_CHARS=2000, FAST_MODEL=gpt-4o-mini, RELEVANCE_THRESHOLD=0.65
+  - Context manager (rag/context_manager.py): token-aware chunk selection, citation_id assignment
+  - RAG interface: guardrails wired into ask()/retrieve(), score threshold filtering, multi-query retrieval, both functions now async
+  - API: AskResponse updated (guardrail_rejected, no_results, retrieval_quality), SourceResponse with citation_id
+  - Web app: AskResponse type updated, Source.score nullable, Message.role includes 'warning', warning-styled bubbles for guardrail rejections, source citations rendered below answers
+  - Eval harness: async evaluate()/run_all(), avg_retrieval_quality/guardrail_rejection_rate/no_result_rate metrics
+  - 36 new Python tests (test_guardrails, test_output_validator, test_context_manager) — all passing
+  - Phase 3 complete — eval results in docs/eval-results-phase3.md
+- Next: Phase 4 — Agents, Memory, Frameworks (Day 11+)
+
+## System Capabilities (End of Phase 3)
+
+- Upload PDFs → ingested into vector store
+- Ask questions → guardrail check → multi-query retrieval → score-threshold filtering → context-managed prompt → streamed answer with citations
+- Real JWT auth protecting all routes
+- Caching on retrieval and LLM responses (with correct cache_miss event timing)
+- Real dashboard metrics from logs and database
+- Prompt versioning and output validation with retry chain
+- Source citations in answers with citation_id mapping
+- Guardrail rejection surfaced as warning-styled messages in UI
 
 ## Project Structure
 
@@ -200,6 +238,9 @@ cd web-app && npm test
 - Smoke test requires manual server startup — not automated yet
 - Python backend trusts X-User-ID header from Next.js (no direct JWT verification on Python side yet)
 - Jose has cross-realm Uint8Array issues in vitest VM — tests mock lib/jwt using Node.js crypto (tests/setup/jwt-mock.ts)
+- Log aggregation is file-based — requires LOG_FILE path configured in Python config (defaults to logs/ai_backend.log)
+- Dashboard AI metrics require Python backend running; ai field is null when backend is down (non-fatal)
+- db/verify-indexes.ts cannot run standalone (server-only guard in db/connection.ts) — verified indexes statically via schema.ts
 
 ## What Claude Code Should Do on Every Session Start
 

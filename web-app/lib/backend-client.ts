@@ -1,6 +1,6 @@
 import 'server-only'
 
-import type { AskResponse, RetrieveResponse, Source } from '@/types'
+import type { AskResponse, RetrieveResponse, Source, AIMetrics } from '@/types'
 import { BackendError, mapBackendError } from './backend-error-mapper'
 
 // ── Raw Python response shapes (snake_case) ───────────────────────────────────
@@ -10,6 +10,7 @@ interface PythonSource {
   content: string
   score: number | null
   metadata: Record<string, unknown>
+  citation_id?: number | null
 }
 
 interface PythonAskResponse {
@@ -20,6 +21,14 @@ interface PythonAskResponse {
     retrieval_ms: number
     generation_ms: number
     total_ms: number
+  }
+  guardrail_rejected?: boolean
+  no_results?: boolean
+  retrieval_quality?: {
+    quality: 'good' | 'fair' | 'poor' | 'no_results'
+    max_score: number
+    avg_score: number
+    chunk_count: number
   }
 }
 
@@ -48,6 +57,20 @@ interface PythonHealthResponse {
   components: Record<string, string>
 }
 
+interface PythonMetricsResponse {
+  period_hours: number
+  total_queries: number
+  avg_latency_ms: number
+  error_rate: number
+  cache_hit_rate: number
+  total_tokens: number
+  estimated_cost_usd: number
+  slow_queries: number
+  failed_retrievals: number
+  queries_per_hour: number
+  token_breakdown: { input: number; output: number }
+}
+
 export interface BackendHealthResult {
   status: string
   components: Record<string, string>
@@ -58,12 +81,14 @@ export interface BackendHealthResult {
 function toSource(raw: PythonSource): Source {
   return {
     content: raw.content,
-    score: raw.score ?? 0,
+    score: raw.score ?? null,
     metadata: raw.metadata,
+    ...(raw.citation_id != null ? { citationId: raw.citation_id } : {}),
   }
 }
 
 function toAskResponse(raw: PythonAskResponse): AskResponse {
+  const rq = raw.retrieval_quality
   return {
     answer: raw.answer,
     sources: raw.sources.map(toSource),
@@ -72,6 +97,14 @@ function toAskResponse(raw: PythonAskResponse): AskResponse {
       retrievalMs: raw.latency_breakdown.retrieval_ms,
       generationMs: raw.latency_breakdown.generation_ms,
       totalMs: raw.latency_breakdown.total_ms,
+    },
+    guardrailRejected: raw.guardrail_rejected ?? false,
+    noResults: raw.no_results ?? false,
+    retrievalQuality: {
+      quality: rq?.quality ?? 'good',
+      maxScore: rq?.max_score ?? 0,
+      avgScore: rq?.avg_score ?? 0,
+      chunkCount: rq?.chunk_count ?? 0,
     },
   }
 }
@@ -231,6 +264,13 @@ class BackendClient {
   async health(): Promise<BackendHealthResult> {
     const raw = await this.request<PythonHealthResponse>('/health', { method: 'GET' })
     return { status: raw.status, components: raw.components }
+  }
+
+  async getMetrics(hours: number = 24): Promise<AIMetrics> {
+    const raw = await this.request<PythonMetricsResponse>(`/metrics?hours=${hours}`, {
+      method: 'GET',
+    })
+    return raw  // Python uses snake_case matching AIMetrics — no conversion needed
   }
 
   // ── Private request method ────────────────────────────────────────────────

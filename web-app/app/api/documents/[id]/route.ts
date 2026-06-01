@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import {
   compose,
@@ -107,6 +108,8 @@ async function deleteHandler(
   }
 
   await documentsRepository.deleteDocument(context.params.id)
+  revalidateTag('documents', 'default')
+  revalidateTag(`document-${context.params.id}`, 'default')
 
   // 204 No Content — success, nothing to return
   // 200 would imply a response body exists

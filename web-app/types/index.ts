@@ -45,6 +45,7 @@ export type {
   QueryListRequest,
   QueryListResponse,
   RetrieveResponse,
+  AIMetrics,
 } from './api'
 
 export {

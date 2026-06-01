@@ -91,6 +91,14 @@ export type AskResponse = {
   readonly sources: readonly Source[]
   readonly traceId: string
   readonly latencyBreakdown: LatencyBreakdown
+  readonly guardrailRejected: boolean
+  readonly noResults: boolean
+  readonly retrievalQuality: {
+    readonly quality: 'good' | 'fair' | 'poor' | 'no_results'
+    readonly maxScore: number
+    readonly avgScore: number
+    readonly chunkCount: number
+  }
 }
 
 // --- POST /api/documents (ingest) ---
@@ -144,3 +152,22 @@ export type QueryListRequest = {
 }
 
 export type QueryListResponse = readonly Query[]
+
+// --- GET /api/dashboard/stats (AI metrics from Python backend) ---
+
+export interface AIMetrics {
+  period_hours: number
+  total_queries: number
+  avg_latency_ms: number
+  error_rate: number
+  cache_hit_rate: number
+  total_tokens: number
+  estimated_cost_usd: number
+  slow_queries: number
+  failed_retrievals: number
+  queries_per_hour: number
+  token_breakdown: {
+    input: number
+    output: number
+  }
+}

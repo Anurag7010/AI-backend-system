@@ -12,12 +12,17 @@ export function MessageBubble({
   if (!message.content) return null;
 
   const isUser = message.role === "user";
+  const isWarning = message.role === "warning";
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-3`}>
       <div
         className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
-          isUser ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+          isUser
+            ? "bg-primary text-primary-foreground"
+            : isWarning
+              ? "bg-amber-50 border border-amber-200 text-amber-900"
+              : "bg-muted text-foreground"
         }`}
       >
         {/* whitespace-pre-wrap preserves newlines in multi-line responses */}

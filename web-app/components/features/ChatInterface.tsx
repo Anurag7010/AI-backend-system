@@ -4,7 +4,7 @@ import React, { useState, useCallback } from "react";
 import { useAsk } from "../../hooks/useAsk";
 import { MessageBubble } from "../ui/MessageBubble";
 import { AsyncBoundary } from "../ui/AsyncBoundary";
-import type { Message } from "../../types";
+import type { Message, Source } from "../../types";
 
 function StreamingBubble({ content }: { content: string }) {
   return (
@@ -61,7 +61,25 @@ export function ChatInterface(): React.ReactElement {
           if (isActiveStream) {
             return <StreamingBubble key={index} content={message.content} />;
           }
-          return <MessageBubble key={index} message={message} />;
+          return (
+            <div key={index}>
+              <MessageBubble message={message} />
+              {message.role === "assistant" && message.sources && message.sources.length > 0 && (
+                <div className="ml-2 mt-2 mb-3 border-t pt-2 text-xs text-muted-foreground max-w-[75%]">
+                  <p className="font-medium mb-1">Sources</p>
+                  {message.sources.map((source: Source, i: number) => (
+                    <div key={i} className="mb-1 truncate">
+                      <span className="font-mono">[Source {source.citationId ?? i + 1}]</span>{' '}
+                      {source.metadata?.source as string ?? 'Document'}
+                      {source.score != null && (
+                        <span className="ml-1 opacity-60">{(source.score * 100).toFixed(0)}%</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
         })}
 
         {/* Bounce dots for non-streaming loading (e.g. ask() fallback path) */}

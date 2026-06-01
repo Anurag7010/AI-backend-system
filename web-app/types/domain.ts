@@ -80,14 +80,16 @@ export type Query = {
 }
 
 export type Message = {
-  readonly role: 'user' | 'assistant'
+  readonly role: 'user' | 'assistant' | 'warning'
   readonly content: string
+  readonly sources?: readonly Source[]
 }
 
 export type Source = {
   readonly content: string
-  readonly score: number
+  readonly score: number | null
   readonly metadata: Record<string, unknown>
+  readonly citationId?: number  // [Source N] — matches inline citation in answer
 }
 
 export type LatencyBreakdown = {

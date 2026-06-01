@@ -7,8 +7,10 @@ Public functions:
     call_llm(prompt, ...)           → str
     call_llm_structured(prompt, schema, ...) → T (Pydantic model)
     complete(prompt, ...)           → dict  (normalized response shape)
+    complete_with_fallback(prompt_name, user_vars, ...) → dict  (validated output with retry)
 """
 
+import asyncio
 import json
 import time
 from typing import Any, AsyncGenerator, Type, TypeVar
@@ -18,7 +20,7 @@ from pydantic import BaseModel
 
 from core.config import config
 from core.retry import with_retry
-from observability.logger import get_logger, log_llm_call
+from observability.logger import get_logger, log_llm_call, log_pipeline_event
 
 logger = get_logger(__name__)
 
@@ -57,13 +59,15 @@ def _call_openai(messages: list[dict], model: str, temperature: float, max_token
 
 
 def complete(
-    prompt:      str,
+    prompt:         str,
     *,
-    system:      str        = "You are a helpful assistant.",
-    model:       str | None = None,
-    temperature: float | None = None,
-    max_tokens:  int | None  = None,
-    trace_id:    str | None  = None,
+    system:         str        = "You are a helpful assistant.",
+    system_prompt:  str | None = None,
+    model:          str | None = None,
+    temperature:    float | None = None,
+    max_tokens:     int | None  = None,
+    trace_id:       str | None  = None,
+    extra_metadata: dict | None = None,
 ) -> dict:
     """
     Send a prompt to the LLM and return a normalized response dict.
@@ -76,9 +80,11 @@ def complete(
     resolved_temp   = temperature if temperature is not None else config.TEMPERATURE
     resolved_tokens = max_tokens  or config.MAX_TOKENS
     resolved_tid    = trace_id    or ""
+    # system_prompt takes precedence over system when provided
+    resolved_system = system_prompt if system_prompt is not None else system
 
     messages = [
-        {"role": "system", "content": system},
+        {"role": "system", "content": resolved_system},
         {"role": "user",   "content": prompt},
     ]
 
@@ -98,6 +104,11 @@ def complete(
             latency_ms=latency_ms,
             cost_usd=cost,
         )
+        if extra_metadata:
+            logger.info(
+                "[llm] extra_metadata",
+                extra={"trace_id": resolved_tid, **extra_metadata},
+            )
         return {
             "text":        text,
             "tokens_used": usage.prompt_tokens + usage.completion_tokens,
@@ -245,3 +256,86 @@ async def stream(
             extra={"trace_id": resolved_tid, "error": str(exc), "latency_ms": round(latency_ms, 2)},
         )
         raise
+
+
+async def complete_with_fallback(
+    prompt_name: str,
+    user_vars: dict,
+    trace_id: str | None = None,
+    max_retries: int = 2,
+) -> dict:
+    """
+    Complete with automatic output validation and retry.
+
+    Returns:
+        {success, data, raw, prompt_version, attempts, error}
+    """
+    if max_retries < 1:
+        raise ValueError(f"max_retries must be >= 1, got {max_retries}")
+
+    from core.prompt_registry import PromptRegistry
+    from core.output_validator import validate_json_output, validate_prose_output
+
+    template = PromptRegistry.get(prompt_name)
+    user_prompt = PromptRegistry.render_user(prompt_name, **user_vars)
+    raw_output = ""
+
+    for attempt in range(1, max_retries + 1):
+        current_prompt = user_prompt
+        if attempt > 1:
+            # Simplified retry prompt
+            question = user_vars.get('question')
+            current_prompt = f"Please answer this simply: {question}" if question else user_prompt
+            log_pipeline_event(
+                'prompt_retry',
+                trace_id or "",
+                {'prompt': prompt_name, 'attempt': attempt}
+            )
+
+        result = await asyncio.to_thread(
+            complete,
+            current_prompt,
+            system_prompt=template.system,
+            trace_id=trace_id,
+            extra_metadata={'prompt_version': template.version, 'attempt': attempt},
+        )
+
+        raw_output = result.get('text', '')
+
+        if result.get('error'):
+            log_pipeline_event(
+                'llm_call_failed',
+                trace_id or "",
+                {'prompt': prompt_name, 'attempt': attempt, 'error': result['error']}
+            )
+            continue
+
+        if template.output_schema:
+            validation = validate_json_output(raw_output, template.output_schema)
+        else:
+            validation = validate_prose_output(raw_output)
+
+        if validation.valid:
+            return {
+                "success": True,
+                "data": validation.data,
+                "raw": raw_output,
+                "prompt_version": template.version,
+                "attempts": attempt,
+                "error": None,
+            }
+
+        log_pipeline_event(
+            'output_validation_failed',
+            trace_id or "",
+            {'prompt': prompt_name, 'attempt': attempt, 'error': validation.error}
+        )
+
+    return {
+        "success": False,
+        "data": None,
+        "raw": raw_output,
+        "prompt_version": template.version,
+        "attempts": max_retries,
+        "error": f"Output validation failed after {max_retries} attempts",
+    }

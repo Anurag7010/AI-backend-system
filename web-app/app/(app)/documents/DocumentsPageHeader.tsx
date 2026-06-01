@@ -5,8 +5,21 @@
 // Extracting it as a separate file keeps documents/page.tsx as a Server Component.
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/Button";
-import { DocumentUploadModal } from "@/components/features/DocumentUploadModal";
+
+// Dynamic import — DocumentUploadModal is only needed after the user clicks "Upload Document".
+// ssr: false because the modal uses useEffect, AbortController, and other browser-only APIs.
+const DocumentUploadModal = dynamic(
+  () =>
+    import("@/components/features/DocumentUploadModal").then(
+      (m) => m.DocumentUploadModal,
+    ),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
 
 export function DocumentsPageHeader() {
   const [modalOpen, setModalOpen] = useState(false);
