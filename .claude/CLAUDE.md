@@ -65,12 +65,30 @@ Three interconnected systems:
   - Eval harness: async evaluate()/run_all(), avg_retrieval_quality/guardrail_rejection_rate/no_result_rate metrics
   - 36 new Python tests (test_guardrails, test_output_validator, test_context_manager) — all passing
   - Phase 3 complete — eval results in docs/eval-results-phase3.md
-- Next: Phase 4 — Agents, Memory, Frameworks (Day 11+)
+- Days 25-26 (Day 11): Agents + Tool Use — COMPLETE
+  - Tool system: BaseTool ABC, ToolRegistry, ToolResult (agents/tools/base.py)
+  - 4 tools: search_documents, get_document_list, get_document_metadata, calculate (agents/tools/implementations.py)
+  - CalculateTool uses AST-based safe eval with math module allowlist — no exec()/eval()
+  - ReAct agent: OpenAI function calling loop, max_iterations=8, full step logging (agents/react_agent.py)
+  - Query router: keyword pattern matching, defaults to RAG, routes complex queries to agent (agents/router.py)
+  - Factory: create_agent() wires all 4 tools with RAGAdapter and ChromaDocumentRepository (agents/factory.py)
+  - API: POST /agent/run (direct agent), POST /ask updated with auto-routing (routed_to field on AskResponse)
+  - Types: AgentStep, AgentRunResponse in types/api.ts; runAgent() on backendClient
+  - Next.js: POST /api/agent/run route (auth + DB recording), useAgent hook, AgentInterface component
+  - Agent page at /agent with collapsible reasoning trace UI
+  - Sidebar updated with Agent nav link
+  - 28 Python tests (test_tools.py, test_agent.py) — all passing
+  - 7 TypeScript tests (useAgent.test.ts) — all passing
+  - 2 bugs found and fixed: Config import singleton pattern, router regex boundary
+- Next: Day 12 — Memory Systems
 
-## System Capabilities (End of Phase 3)
+## System Capabilities (End of Day 11)
 
 - Upload PDFs → ingested into vector store
-- Ask questions → guardrail check → multi-query retrieval → score-threshold filtering → context-managed prompt → streamed answer with citations
+- Ask questions → auto-routed: simple → RAG pipeline, complex → ReAct agent
+- RAG pipeline: guardrail check → multi-query retrieval → score-threshold filtering → context-managed prompt → streamed answer with citations
+- Agent pipeline: tool selection → search_documents / get_document_list / get_document_metadata / calculate → reasoning trace → final answer
+- Agent reasoning trace visible in /agent page UI (collapsible steps)
 - Real JWT auth protecting all routes
 - Caching on retrieval and LLM responses (with correct cache_miss event timing)
 - Real dashboard metrics from logs and database

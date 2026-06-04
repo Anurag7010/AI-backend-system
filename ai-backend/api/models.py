@@ -55,6 +55,7 @@ class AskResponse(BaseModel):
     guardrail_rejected: bool = Field(False, description="True if the query was rejected by guardrails")
     no_results: bool = Field(False, description="True if no relevant document chunks were found")
     retrieval_quality: dict = Field(default_factory=dict, description="{quality, max_score, avg_score, chunk_count}")
+    routed_to: str = Field("rag", description="'rag' | 'agent' — pipeline that handled this request")
 
 
 class IngestResponse(BaseModel):
@@ -87,3 +88,25 @@ class ErrorResponse(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc).isoformat(),
         description="ISO 8601 timestamp of when the error occurred",
     )
+
+
+# ── Agent models ──────────────────────────────────────────────────────────────
+
+class AgentStepResponse(BaseModel):
+    """Single step in the agent's reasoning trace."""
+    step_number: int = Field(..., description="Step index starting at 1")
+    action: str | None = Field(None, description="Tool name called in this step")
+    action_input: dict | None = Field(None, description="Input passed to the tool")
+    observation: str | None = Field(None, description="Tool result injected back into the loop")
+    is_final: bool = Field(False, description="True when this step contains the final answer")
+    final_answer: str | None = Field(None, description="The agent's final answer (only on is_final=True steps)")
+
+
+class AgentRunResponse(BaseModel):
+    """Complete result of one agent run including full reasoning trace."""
+    answer: str = Field(..., description="The agent's final answer")
+    steps: list[AgentStepResponse] = Field(..., description="Full reasoning trace")
+    total_steps: int = Field(..., description="Total number of iterations taken")
+    stopped_reason: str = Field(..., description="'final_answer' | 'max_iterations' | 'error'")
+    trace_id: str = Field(..., description="Request trace ID")
+    routed_to: str = Field("agent", description="Always 'agent' for this endpoint")

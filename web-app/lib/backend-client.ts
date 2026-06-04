@@ -1,6 +1,6 @@
 import 'server-only'
 
-import type { AskResponse, RetrieveResponse, Source, AIMetrics } from '@/types'
+import type { AskResponse, RetrieveResponse, Source, AIMetrics, AgentRunResponse, AgentStep } from '@/types'
 import { BackendError, mapBackendError } from './backend-error-mapper'
 
 // ── Raw Python response shapes (snake_case) ───────────────────────────────────
@@ -35,6 +35,24 @@ interface PythonAskResponse {
 interface PythonRetrieveResponse {
   chunks: PythonSource[]
   trace_id: string
+}
+
+interface PythonAgentStep {
+  step_number: number
+  action: string | null
+  action_input: Record<string, unknown> | null
+  observation: string | null
+  is_final: boolean
+  final_answer: string | null
+}
+
+interface PythonAgentRunResponse {
+  answer: string
+  steps: PythonAgentStep[]
+  total_steps: number
+  stopped_reason: 'final_answer' | 'max_iterations' | 'error'
+  trace_id: string
+  routed_to: 'agent'
 }
 
 // Returned by the Python ingest endpoint.
@@ -113,6 +131,28 @@ function toRetrieveResponse(raw: PythonRetrieveResponse): RetrieveResponse {
   return {
     chunks: raw.chunks.map(toSource),
     traceId: raw.trace_id,
+  }
+}
+
+function toAgentStep(raw: PythonAgentStep): AgentStep {
+  return {
+    stepNumber: raw.step_number,
+    action: raw.action,
+    actionInput: raw.action_input,
+    observation: raw.observation,
+    isFinal: raw.is_final,
+    finalAnswer: raw.final_answer,
+  }
+}
+
+function toAgentRunResponse(raw: PythonAgentRunResponse): AgentRunResponse {
+  return {
+    answer: raw.answer,
+    steps: raw.steps.map(toAgentStep),
+    totalSteps: raw.total_steps,
+    stoppedReason: raw.stopped_reason,
+    traceId: raw.trace_id,
+    routedTo: raw.routed_to,
   }
 }
 
@@ -259,6 +299,26 @@ class BackendClient {
       userId: options.userId,
     })
     return toRetrieveResponse(raw)
+  }
+
+  async runAgent(
+    query: string,
+    options: {
+      history?: Array<{ role: string; content: string }>
+      userId?: string
+      traceId?: string
+    } = {}
+  ): Promise<AgentRunResponse> {
+    const raw = await this.request<PythonAgentRunResponse>('/agent/run', {
+      method: 'POST',
+      body: JSON.stringify({
+        query,
+        history: options.history ?? [],
+      }),
+      traceId: options.traceId,
+      userId: options.userId,
+    })
+    return toAgentRunResponse(raw)
   }
 
   async health(): Promise<BackendHealthResult> {

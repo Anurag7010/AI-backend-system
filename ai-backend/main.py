@@ -69,7 +69,8 @@ def health_check() -> bool:
     # 4. RAG interface importable + retrieve() doesn't crash on empty query
     try:
         from rag.rag_interface import retrieve
-        result = retrieve("")
+        import asyncio as _asyncio
+        result = _asyncio.run(retrieve(""))
         # Empty query returns error list — that's fine; we just need no exception
         print("  [PASS] RAG interface importable and retrieve() callable")
     except Exception as exc:
@@ -83,7 +84,7 @@ def health_check() -> bool:
 
 # ── Smoke test ────────────────────────────────────────────────────────────────
 
-def run_smoke_test() -> None:
+async def run_smoke_test() -> None:
     from rag.rag_interface import ingest, ask
     from evals.eval_runner import run_all
     from evals.test_cases import TEST_CASES
@@ -108,7 +109,7 @@ def run_smoke_test() -> None:
     # Step 3: Manual ask()
     _divider("STEP 3 — Manual ask()")
     query  = "What is this document about?"
-    result = ask(query)
+    result = await ask(query)
 
     print(f"  Query:    {query!r}")
     print(f"  trace_id: {result['trace_id']}")
@@ -124,7 +125,7 @@ def run_smoke_test() -> None:
 
     # Step 4: Eval run
     _divider("STEP 4 — Eval Run")
-    summary = run_all(TEST_CASES)
+    summary = await run_all(TEST_CASES)
     logger.info(
         "eval_complete",
         extra={
@@ -142,8 +143,9 @@ def run_smoke_test() -> None:
 
 
 if __name__ == "__main__":
+    import asyncio as _asyncio
     if "--health-check" in sys.argv:
         passed = health_check()
         sys.exit(0 if passed else 1)
     else:
-        run_smoke_test()
+        _asyncio.run(run_smoke_test())

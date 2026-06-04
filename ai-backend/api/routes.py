@@ -31,10 +31,73 @@ from api.models import (
     HealthResponse,
     SourceResponse,
     ErrorResponse,
+    AgentStepResponse,
+    AgentRunResponse,
 )
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+
+# ── RAG adapter ───────────────────────────────────────────────────────────────
+
+class _RAGAdapter:
+    """Wraps module-level rag_interface functions as an object for tool injection."""
+
+    async def retrieve(self, query: str, top_k: int = 5, strategy: str = "semantic") -> list[dict]:
+        """Delegate to module-level retrieve()."""
+        from rag.rag_interface import retrieve as _retrieve
+        return await _retrieve(query=query, top_k=top_k, strategy=strategy)
+
+
+# ── ChromaDB document repository ──────────────────────────────────────────────
+
+from dataclasses import dataclass as _dc
+from datetime import datetime as _dt
+
+
+@_dc
+class _ChromaDoc:
+    id: str
+    filename: str
+    status: str
+    chunk_count: int
+    created_at: _dt | None
+    updated_at: _dt | None
+
+
+class _ChromaDocumentRepository:
+    """Queries ChromaDB vectorstore to list ingested documents."""
+
+    async def findByUser(self, user_id: str) -> list[_ChromaDoc]:
+        """Return all ingested documents (Python side has no user concept)."""
+        try:
+            import chromadb
+            client = chromadb.PersistentClient(path="external/rag_system/db/chroma_db")
+            collection = client.get_or_create_collection("langchain")
+            result = collection.get(include=["metadatas"])
+
+            seen: dict[str, _ChromaDoc] = {}
+            for metadata in (result.get("metadatas") or []):
+                source = metadata.get("source") or metadata.get("file") or "unknown"
+                if source not in seen:
+                    seen[source] = _ChromaDoc(
+                        id=source,
+                        filename=source.split("/")[-1] if "/" in source else source,
+                        status="ingested",
+                        chunk_count=0,
+                        created_at=None,
+                        updated_at=None,
+                    )
+                seen[source].chunk_count += 1
+            return list(seen.values())
+        except Exception:
+            return []
+
+    async def findById(self, doc_id: str) -> _ChromaDoc | None:
+        """Find a document by source ID."""
+        docs = await self.findByUser("")
+        return next((d for d in docs if d.id == doc_id or d.filename == doc_id), None)
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
@@ -132,6 +195,33 @@ async def ask(body: AskRequest, request: Request) -> AskResponse | JSONResponse:
     """
     trace_id: str = getattr(request.state, "trace_id", new_trace_id())
     try:
+        # Route to agent if query pattern matches
+        from agents.router import route_query, QueryRoute
+        route = route_query(body.query, trace_id)
+
+        if route == QueryRoute.AGENT:
+            user_id = request.headers.get("X-User-ID", "anonymous")
+            from agents.factory import create_agent
+            rag = _RAGAdapter()
+            doc_repo = _ChromaDocumentRepository()
+            agent = create_agent(rag_interface=rag, documents_repository=doc_repo)
+            result = await agent.run(
+                query=body.query,
+                user_id=user_id,
+                trace_id=trace_id,
+                conversation_history=body.history or [],
+            )
+            return AskResponse(
+                answer=result.answer,
+                sources=[],
+                trace_id=trace_id,
+                latency_breakdown={"retrieval_ms": 0, "generation_ms": 0, "total_ms": 0},
+                guardrail_rejected=False,
+                no_results=False,
+                retrieval_quality={},
+                routed_to="agent",
+            )
+
         from rag.rag_interface import ask as rag_ask
 
         result = await rag_ask(
@@ -164,6 +254,7 @@ async def ask(body: AskRequest, request: Request) -> AskResponse | JSONResponse:
             guardrail_rejected=result.get("guardrail_rejected", False),
             no_results=result.get("no_results", False),
             retrieval_quality=result.get("retrieval_quality", {}),
+            routed_to="rag",
         )
 
     except Exception as exc:
@@ -378,6 +469,55 @@ async def retrieve(
             exc_info=True,
         )
         return _error_response("retrieve_failed", str(exc), trace_id, 500)
+
+
+# ── POST /agent/run ───────────────────────────────────────────────────────────
+
+@router.post("/agent/run", response_model=AgentRunResponse, tags=["agent"])
+async def run_agent(body: AskRequest, request: Request) -> AgentRunResponse | JSONResponse:
+    """
+    Run the ReAct agent for a query.
+
+    Always uses the agent pipeline — no auto-routing. Use POST /ask for routing.
+    """
+    trace_id: str = getattr(request.state, "trace_id", new_trace_id())
+    user_id: str = request.headers.get("X-User-ID", "anonymous")
+
+    try:
+        from agents.factory import create_agent
+
+        rag = _RAGAdapter()
+        doc_repo = _ChromaDocumentRepository()
+        agent = create_agent(rag_interface=rag, documents_repository=doc_repo)
+
+        result = await agent.run(
+            query=body.query,
+            user_id=user_id,
+            trace_id=trace_id,
+            conversation_history=body.history or [],
+        )
+
+        return AgentRunResponse(
+            answer=result.answer,
+            steps=[
+                AgentStepResponse(
+                    step_number=s.step_number,
+                    action=s.action,
+                    action_input=s.action_input,
+                    observation=s.observation,
+                    is_final=s.is_final,
+                    final_answer=s.final_answer,
+                )
+                for s in result.steps
+            ],
+            total_steps=result.total_steps,
+            stopped_reason=result.stopped_reason,
+            trace_id=trace_id,
+        )
+
+    except Exception as exc:
+        logger.error("agent_run_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True)
+        return _error_response("agent_failed", str(exc), trace_id, 500)
 
 
 # ── GET /cache/stats ──────────────────────────────────────────────────────────

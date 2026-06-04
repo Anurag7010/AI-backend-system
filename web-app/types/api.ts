@@ -99,6 +99,7 @@ export type AskResponse = {
     readonly avgScore: number
     readonly chunkCount: number
   }
+  readonly routedTo?: 'rag' | 'agent'
 }
 
 // --- POST /api/documents (ingest) ---
@@ -170,4 +171,26 @@ export interface AIMetrics {
     input: number
     output: number
   }
+}
+
+// ============================================================
+// AGENT TYPES
+// ============================================================
+
+export type AgentStep = {
+  readonly stepNumber: number
+  readonly action: string | null
+  readonly actionInput: Record<string, unknown> | null
+  readonly observation: string | null
+  readonly isFinal: boolean
+  readonly finalAnswer: string | null
+}
+
+export type AgentRunResponse = {
+  readonly answer: string
+  readonly steps: readonly AgentStep[]
+  readonly totalSteps: number
+  readonly stoppedReason: 'final_answer' | 'max_iterations' | 'error'
+  readonly traceId: string
+  readonly routedTo: 'agent'
 }
