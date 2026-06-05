@@ -16,6 +16,7 @@ export type {
   CreateDocumentInput,
   CreateQueryInput,
   UpdateDocumentInput,
+  Memory,
 } from './domain'
 
 export {

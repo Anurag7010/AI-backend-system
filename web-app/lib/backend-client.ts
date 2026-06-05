@@ -1,6 +1,6 @@
 import 'server-only'
 
-import type { AskResponse, RetrieveResponse, Source, AIMetrics, AgentRunResponse, AgentStep } from '@/types'
+import type { AskResponse, RetrieveResponse, Source, AIMetrics, AgentRunResponse, AgentStep, Memory } from '@/types'
 import { BackendError, mapBackendError } from './backend-error-mapper'
 
 // ── Raw Python response shapes (snake_case) ───────────────────────────────────
@@ -73,6 +73,20 @@ interface PythonIngestResponse {
 interface PythonHealthResponse {
   status: string
   components: Record<string, string>
+}
+
+interface PythonMemory {
+  id: string
+  content: string
+  created_at: string
+  last_accessed: string
+  access_count: number
+  similarity?: number
+}
+
+interface PythonMemoriesResponse {
+  memories: PythonMemory[]
+  count: number
 }
 
 interface PythonMetricsResponse {
@@ -153,6 +167,17 @@ function toAgentRunResponse(raw: PythonAgentRunResponse): AgentRunResponse {
     stoppedReason: raw.stopped_reason,
     traceId: raw.trace_id,
     routedTo: raw.routed_to,
+  }
+}
+
+function toMemory(raw: PythonMemory): Memory {
+  return {
+    id: raw.id,
+    content: raw.content,
+    createdAt: raw.created_at,
+    lastAccessed: raw.last_accessed,
+    accessCount: raw.access_count,
+    ...(raw.similarity != null ? { similarity: raw.similarity } : {}),
   }
 }
 
@@ -331,6 +356,35 @@ class BackendClient {
       method: 'GET',
     })
     return raw  // Python uses snake_case matching AIMetrics — no conversion needed
+  }
+
+  async listMemories(userId: string): Promise<{ memories: Memory[]; count: number }> {
+    const raw = await this.request<PythonMemoriesResponse>('/memories', {
+      method: 'GET',
+      userId,
+    })
+    return {
+      memories: raw.memories.map(toMemory),
+      count: raw.count,
+    }
+  }
+
+  async deleteMemory(memoryId: string, userId: string): Promise<void> {
+    await this.request<{ deleted: boolean }>(`/memories/${encodeURIComponent(memoryId)}`, {
+      method: 'DELETE',
+      userId,
+    })
+  }
+
+  async extractMemories(
+    userId: string,
+    messages: Array<{ role: string; content: string }>
+  ): Promise<void> {
+    await this.request<{ status: string }>('/memories/extract', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, messages }),
+      userId,
+    })
   }
 
   // ── Private request method ────────────────────────────────────────────────

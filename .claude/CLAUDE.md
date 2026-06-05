@@ -80,9 +80,21 @@ Three interconnected systems:
   - 28 Python tests (test_tools.py, test_agent.py) — all passing
   - 7 TypeScript tests (useAgent.test.ts) — all passing
   - 2 bugs found and fixed: Config import singleton pattern, router regex boundary
-- Next: Day 12 — Memory Systems
+- Day 12 (Phase 4): Memory Systems — COMPLETE
+- Next: Day 13 — Framework Awareness + MCP Concepts
+- Days 27+ (Day 12): Memory Systems — COMPLETE
+  - ConversationBuffer: token-aware windowing (max 2000 tokens) with window/summary strategies
+  - LongTermMemoryStore: ChromaDB-backed user fact store with dedup (cosine similarity >= 0.95)
+  - MemoryExtractor: LLM-based fact extraction using FAST_MODEL (gpt-4o-mini)
+  - ask() updated: loads conversation history via ConversationBuffer, injects long-term memories
+  - ReActAgent updated: accepts user_memories param, injects into system prompt
+  - Python API: GET/DELETE /memories, POST /memories/extract (background tasks)
+  - Next.js: /api/conversations (CRUD), /api/conversations/[id]/messages, /api/memories (all three)
+  - ask route: conversationId param, auto-save messages, auto-title, fire-and-forget extraction
+  - MemoryPanel component: view and delete memories in /settings page
+  - 38 Python tests passing (test_conversation_buffer, test_long_term_memory, test_memory_extractor)
 
-## System Capabilities (End of Day 11)
+## System Capabilities (After Day 12)
 
 - Upload PDFs → ingested into vector store
 - Ask questions → auto-routed: simple → RAG pipeline, complex → ReAct agent
@@ -95,6 +107,12 @@ Three interconnected systems:
 - Prompt versioning and output validation with retry chain
 - Source citations in answers with citation_id mapping
 - Guardrail rejection surfaced as warning-styled messages in UI
+- Persistent conversations: history saved to DB, loaded per session
+- Short-term memory: ConversationBuffer with token windowing (max 2000 tokens)
+- Long-term memory: user facts stored as embeddings in ChromaDB, retrieved per query
+- Memory extraction: facts automatically extracted after each conversation (background)
+- Memory injection: relevant memories injected into system prompt per query
+- Memory settings UI: users can view and delete their memories at /settings
 
 ## Project Structure
 

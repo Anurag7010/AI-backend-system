@@ -70,12 +70,14 @@ Rules:
         query: str,
         user_id: str,
         trace_id: str = None,
-        conversation_history: list[dict] = None
+        conversation_history: list[dict] = None,
+        user_memories: list[str] = None,
     ) -> AgentResult:
         """
         Run the ReAct loop for a given query.
 
         Injects user_id into document tools, appends up to 6 prior messages for context.
+        Injects user_memories into the system prompt when provided.
         """
         # Inject user_id into tools that need it
         for tool_name in ['get_document_list', 'get_document_metadata']:
@@ -83,7 +85,11 @@ Rules:
             if tool:
                 tool.user_id = user_id
 
-        messages: list[dict] = [{"role": "system", "content": self.SYSTEM_PROMPT}]
+        system_prompt = self.SYSTEM_PROMPT
+        if user_memories:
+            facts = '\n'.join(f"- {f}" for f in user_memories)
+            system_prompt += f"\n\nWhat you know about this user:\n{facts}"
+        messages: list[dict] = [{"role": "system", "content": system_prompt}]
 
         if conversation_history:
             messages.extend(conversation_history[-6:])

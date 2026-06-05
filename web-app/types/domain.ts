@@ -127,3 +127,13 @@ export type CreateQueryInput = Omit<
 export type UpdateDocumentInput = Partial<
   Pick<Document, 'status' | 'chunkCount' | 'updatedAt'>
 >
+
+// Memory — a long-term fact the AI has learned about the user
+export type Memory = {
+  readonly id: string
+  readonly content: string
+  readonly createdAt: string
+  readonly lastAccessed: string
+  readonly accessCount: number
+  readonly similarity?: number
+}

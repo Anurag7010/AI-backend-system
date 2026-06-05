@@ -18,7 +18,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Request, UploadFile, Form, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Request, UploadFile, Form, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from observability.logger import get_logger
@@ -551,3 +551,78 @@ async def get_metrics(hours: int = 24) -> JSONResponse:
     from observability.metrics import compute_metrics
     metrics = compute_metrics(since_hours=hours)
     return JSONResponse(content=metrics)
+
+
+# ── GET /memories ─────────────────────────────────────────────────────────────
+
+@router.get("/memories", tags=["memory"])
+async def list_memories(request: Request) -> JSONResponse:
+    """List all long-term memories for the authenticated user."""
+    trace_id: str = getattr(request.state, "trace_id", new_trace_id())
+    user_id = request.headers.get('X-User-ID')
+    if not user_id:
+        return _error_response("missing_user_id", "X-User-ID header required", trace_id, 400)
+    try:
+        from memory.long_term_memory import LongTermMemoryStore
+        store = LongTermMemoryStore()
+        memories = await store.list_memories(user_id)
+        return JSONResponse(content={"memories": memories, "count": len(memories)})
+    except Exception as exc:
+        logger.error("list_memories_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True)
+        return _error_response("list_memories_failed", str(exc), trace_id, 500)
+
+
+# ── DELETE /memories/{memory_id} ──────────────────────────────────────────────
+
+@router.delete("/memories/{memory_id}", tags=["memory"])
+async def delete_memory_endpoint(memory_id: str, request: Request) -> JSONResponse:
+    """Delete a specific memory. Verifies the memory belongs to the requesting user."""
+    trace_id: str = getattr(request.state, "trace_id", new_trace_id())
+    user_id = request.headers.get('X-User-ID')
+    if not user_id:
+        return _error_response("missing_user_id", "X-User-ID header required", trace_id, 400)
+    try:
+        from memory.long_term_memory import LongTermMemoryStore
+        store = LongTermMemoryStore()
+        deleted = await store.delete_memory(memory_id, user_id)
+        if not deleted:
+            return _error_response("not_found", "Memory not found or access denied", trace_id, 404)
+        return JSONResponse(content={"deleted": True})
+    except Exception as exc:
+        logger.error("delete_memory_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True)
+        return _error_response("delete_memory_failed", str(exc), trace_id, 500)
+
+
+# ── POST /memories/extract ────────────────────────────────────────────────────
+
+@router.post("/memories/extract", tags=["memory"])
+async def extract_and_store_memories(
+    body: dict,
+    request: Request,
+    background_tasks: BackgroundTasks,
+) -> JSONResponse:
+    """
+    Trigger async memory extraction from a conversation.
+    Body: { user_id: str, messages: [{role, content}] }
+    Returns immediately; extraction runs in background.
+    """
+    trace_id: str = getattr(request.state, "trace_id", new_trace_id())
+    user_id = body.get('user_id')
+    messages = body.get('messages', [])
+
+    if not user_id:
+        return _error_response("missing_user_id", "user_id required in body", trace_id, 400)
+
+    async def _extract_and_store() -> None:
+        try:
+            from memory.memory_extractor import extract_memories
+            from memory.long_term_memory import LongTermMemoryStore
+            facts = await extract_memories(messages, trace_id=trace_id)
+            store = LongTermMemoryStore()
+            for fact in facts:
+                await store.store_memory(user_id, fact, trace_id=trace_id)
+        except Exception as exc:
+            logger.error("background_memory_extraction_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True)
+
+    background_tasks.add_task(_extract_and_store)
+    return JSONResponse(content={"status": "extraction_started"})

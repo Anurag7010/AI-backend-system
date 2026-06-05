@@ -12,6 +12,8 @@ import { RequestContext } from '@/lib/middleware/types'
 import { queriesRepository } from '@/db'
 import { backendClient } from '@/lib/backend-client'
 import { BackendError, mapBackendError } from '@/lib/backend-error-mapper'
+import { getConversationMessages, addMessage } from '@/db/repositories/messages'
+import { findConversationById, updateConversationTitle } from '@/db/repositories/conversations'
 
 const AskSchema = z.object({
   query: z.string().min(1, 'Query is required').max(2000),
@@ -22,6 +24,7 @@ const AskSchema = z.object({
     content: z.string(),
   })).optional().default([]),
   documentId: z.string().uuid().optional(),
+  conversationId: z.string().uuid().optional(),
 })
 
 async function listHandler(
@@ -43,6 +46,20 @@ async function createHandler(
   context: RequestContext
 ): Promise<NextResponse> {
   const body = context.parsedBody as z.infer<typeof AskSchema>
+  const { conversationId } = body
+
+  // Load conversation history from DB if conversationId is provided
+  let historyFromDB: Array<{ role: 'user' | 'assistant'; content: string }> = []
+  if (conversationId) {
+    const dbMessages = await getConversationMessages(conversationId, 100)
+    historyFromDB = dbMessages.map(m => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }))
+  }
+
+  // DB history takes precedence over history in request body
+  const effectiveHistory = historyFromDB.length > 0 ? historyFromDB : body.history
 
   // Create query record before AI call — we have a record even if AI fails
   const queryRecord = await queriesRepository.create({
@@ -55,8 +72,9 @@ async function createHandler(
     const aiResponse = await backendClient.ask(body.query, {
       topK: body.topK,
       strategy: body.strategy,
-      history: body.history,
+      history: effectiveHistory,
       traceId: context.requestId,
+      userId: context.userId!,
     })
 
     // Persist answer and latency for query history
@@ -66,6 +84,36 @@ async function createHandler(
       aiResponse.latencyBreakdown.totalMs,
       { sources: aiResponse.sources, traceId: aiResponse.traceId }
     )
+
+    // Persist messages to conversation if conversationId was provided
+    if (conversationId) {
+      await addMessage({ conversationId, role: 'user', content: body.query, tokenCount: 0 })
+      await addMessage({ conversationId, role: 'assistant', content: aiResponse.answer, tokenCount: 0 })
+
+      // Auto-title: update if still default title
+      const conv = await findConversationById(conversationId, context.userId!)
+      if (conv?.title === 'New Conversation') {
+        await updateConversationTitle(conversationId, context.userId!, body.query.slice(0, 50))
+      }
+
+      // Non-blocking: trigger memory extraction for the conversation
+      const aiBackendUrl = process.env.AI_BACKEND_URL ?? ''
+      fetch(`${aiBackendUrl}/memories/extract`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': process.env.AI_BACKEND_API_KEY ?? '',
+        },
+        body: JSON.stringify({
+          user_id: context.userId!,
+          messages: [
+            ...historyFromDB,
+            { role: 'user', content: body.query },
+            { role: 'assistant', content: aiResponse.answer },
+          ],
+        }),
+      }).catch(() => { /* non-fatal */ })
+    }
 
     // Return AskResponse directly — the browser needs the AI answer, not the DB record
     return NextResponse.json(aiResponse, { status: 200 })

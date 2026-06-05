@@ -133,12 +133,51 @@ export const queries = pgTable(
 )
 
 // ============================================================
+// CONVERSATIONS
+// ============================================================
+
+export const conversations = pgTable('conversations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull().default('New Conversation'),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+    .$defaultFn(() => new Date()),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+    .$defaultFn(() => new Date()),
+}, (table) => ({
+  userIdIdx: index('conversations_user_id_idx').on(table.userId),
+  updatedAtIdx: index('conversations_updated_at_idx').on(table.updatedAt),
+}))
+
+// ============================================================
+// MESSAGES
+// ============================================================
+
+export const messages = pgTable('messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  conversationId: uuid('conversation_id')
+    .notNull()
+    .references(() => conversations.id, { onDelete: 'cascade' }),
+  role: text('role', { enum: ['user', 'assistant', 'system'] }).notNull(),
+  content: text('content').notNull(),
+  tokenCount: integer('token_count').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+    .$defaultFn(() => new Date()),
+}, (table) => ({
+  conversationIdIdx: index('messages_conversation_id_idx').on(table.conversationId),
+  createdAtIdx: index('messages_created_at_idx').on(table.createdAt),
+}))
+
+// ============================================================
 // RELATIONS — for Drizzle relational query API
 // ============================================================
 
 export const usersRelations = relations(users, ({ many }) => ({
   documents: many(documents),
   queries: many(queries),
+  conversations: many(conversations),
 }))
 
 export const documentsRelations = relations(documents, ({ one, many }) => ({
@@ -149,6 +188,15 @@ export const documentsRelations = relations(documents, ({ one, many }) => ({
 export const queriesRelations = relations(queries, ({ one }) => ({
   user: one(users, { fields: [queries.userId], references: [users.id] }),
   document: one(documents, { fields: [queries.documentId], references: [documents.id] }),
+}))
+
+export const conversationsRelations = relations(conversations, ({ one, many }) => ({
+  user: one(users, { fields: [conversations.userId], references: [users.id] }),
+  messages: many(messages),
+}))
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  conversation: one(conversations, { fields: [messages.conversationId], references: [conversations.id] }),
 }))
 
 // ============================================================
@@ -167,3 +215,8 @@ export type NewDocument = typeof documents.$inferInsert
 
 export type Query = typeof queries.$inferSelect
 export type NewQuery = typeof queries.$inferInsert
+
+export type Conversation = typeof conversations.$inferSelect
+export type NewConversation = typeof conversations.$inferInsert
+export type Message = typeof messages.$inferSelect
+export type NewMessage = typeof messages.$inferInsert
