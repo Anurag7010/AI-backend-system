@@ -202,6 +202,28 @@ export const messagesRelations = relations(messages, ({ one }) => ({
 }))
 
 // ============================================================
+// SEARCH HISTORY
+// ============================================================
+
+export const searchHistory = pgTable('search_history', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  query: text('query').notNull(),
+  resultCount: integer('result_count').default(0),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+    .$defaultFn(() => new Date()),
+}, (table) => ({
+  userIdIdx: index('search_history_user_id_idx').on(table.userId),
+  createdAtIdx: index('search_history_created_at_idx').on(table.createdAt),
+}))
+
+export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
+  user: one(users, { fields: [searchHistory.userId], references: [users.id] }),
+}))
+
+// ============================================================
 // INFERRED TYPES — use these everywhere, never write types manually
 // ============================================================
 
@@ -222,3 +244,6 @@ export type Conversation = typeof conversations.$inferSelect
 export type NewConversation = typeof conversations.$inferInsert
 export type Message = typeof messages.$inferSelect
 export type NewMessage = typeof messages.$inferInsert
+
+export type SearchHistory = typeof searchHistory.$inferSelect
+export type NewSearchHistory = typeof searchHistory.$inferInsert

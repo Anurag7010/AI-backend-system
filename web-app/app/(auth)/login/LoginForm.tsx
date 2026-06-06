@@ -124,14 +124,12 @@ export function LoginForm() {
         <div className="relative flex flex-col justify-between h-full p-10">
           {/* Logo */}
           <div className="flex items-center gap-2.5">
-            <svg viewBox="0 0 28 28" fill="none" className="size-7">
+            <svg viewBox="0 0 28 28" fill="none" className="size-7 shrink-0">
               <rect width="28" height="28" rx="7" fill="hsl(217 91% 60%)" />
-              <rect x="5.5" y="5.5" width="11" height="15" rx="2" fill="white" opacity="0.9" />
-              <rect x="13" y="9.5" width="9.5" height="3" rx="1.5" fill="white" opacity="0.65" />
-              <circle cx="20" cy="19" r="5.5" fill="hsl(217 91% 45%)" />
-              <path d="M18 19l1.5 1.5 3-3" stroke="white" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M14 5c0 0-4 4-4 8 0 2.5 1.5 4 1.5 4s-.5-2 1-3.5c.5 2 2 3.5 2 5.5 1-1 1.5-2.5 1.5-4 1 1.5 1 3.5 1 3.5S19 17 19 14c0-3-2-5.5-2-5.5s.5 3-1.5 4C14.5 10 14 5 14 5z" fill="white" opacity="0.95" />
+              <circle cx="14" cy="21" r="1.5" fill="white" opacity="0.6" />
             </svg>
-            <span className="text-sm font-semibold text-white tracking-tight">DocMind</span>
+            <span className="text-sm font-semibold text-white tracking-tight">PrometheonAI</span>
           </div>
 
           {/* Feature highlights — not hero metrics, actual product value */}
@@ -153,7 +151,7 @@ export function LoginForm() {
                   </>
                 ),
                 title: 'Memory across sessions',
-                body: 'DocMind remembers your preferences and past conversations so you never repeat yourself.',
+                body: 'PrometheonAI remembers your preferences and past conversations so you never repeat yourself.',
               },
               {
                 icon: (
@@ -180,7 +178,7 @@ export function LoginForm() {
             ))}
           </div>
 
-          <p className="text-xs text-white/40">DocMind — Built with Next.js, Python, ChromaDB, and OpenAI.</p>
+          <p className="text-xs text-white/40">PrometheonAI — Built with Next.js, Python, ChromaDB, and OpenAI.</p>
         </div>
       </div>
 
@@ -189,18 +187,17 @@ export function LoginForm() {
         <div className={cn('w-full max-w-sm', shake && 'animate-[shake_0.4s_ease-in-out]')}>
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <svg viewBox="0 0 24 24" fill="none" className="size-6">
+            <svg viewBox="0 0 24 24" fill="none" className="size-6 shrink-0">
               <rect width="24" height="24" rx="6" fill="hsl(217 91% 60%)" />
-              <rect x="5" y="5.5" width="8.5" height="12" rx="1.5" fill="white" opacity="0.9" />
-              <rect x="11" y="8.5" width="7" height="2.5" rx="1.25" fill="white" opacity="0.7" />
-              <circle cx="17" cy="16" r="3.5" fill="hsl(217 91% 45%)" />
+              <path d="M12 4c0 0-3.5 3.5-3.5 7 0 2 1.2 3.2 1.2 3.2s-.4-1.6.8-3c.4 1.6 1.6 2.8 1.6 4.5.8-.8 1.2-2 1.2-3.2.8 1.2.8 2.8.8 2.8s1.6-1.6 1.6-3.8c0-2.4-1.6-4.5-1.6-4.5s.4 2.4-1.2 3.2C12.4 7.5 12 4 12 4z" fill="white" opacity="0.95" />
+              <circle cx="12" cy="18.5" r="1.2" fill="white" opacity="0.6" />
             </svg>
-            <span className="text-sm font-semibold tracking-tight">DocMind</span>
+            <span className="text-sm font-semibold tracking-tight">PrometheonAI</span>
           </div>
 
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Sign in to continue to DocMind.{' '}
+            Sign in to continue to PrometheonAI.{' '}
             <Link href="/register" className="font-medium text-brand-500 hover:text-brand-600 transition-colors">
               Create account
             </Link>

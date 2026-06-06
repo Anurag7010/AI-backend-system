@@ -30,6 +30,7 @@ const navItems = [
   { href: '/documents', label: 'Documents' },
   { href: '/chat',      label: 'Chat'      },
   { href: '/agent',     label: 'Agent'     },
+  { href: '/search',    label: 'Search'    },
   { href: '/settings',  label: 'Settings'  },
 ]
 
@@ -72,7 +73,7 @@ export function MobileSidebar({ email }: { email: string }) {
             <circle cx="17" cy="16" r="3.5" fill="hsl(217 91% 45%)" />
             <path d="M15.8 16l1 1 1.5-1.5" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span className="text-sm font-semibold tracking-tight">DocMind</span>
+          <span className="text-sm font-semibold tracking-tight">PrometheonAI</span>
         </div>
 
         <button
@@ -108,14 +109,12 @@ export function MobileSidebar({ email }: { email: string }) {
         {/* Header */}
         <div className="flex h-14 items-center justify-between border-b border-border px-4">
           <div className="flex items-center gap-2">
-            <svg viewBox="0 0 24 24" fill="none" className="size-6">
+            <svg viewBox="0 0 24 24" fill="none" className="size-6 shrink-0">
               <rect width="24" height="24" rx="6" fill="hsl(217 91% 60%)" />
-              <rect x="5" y="5.5" width="8.5" height="12" rx="1.5" fill="white" opacity="0.9" />
-              <rect x="11" y="8.5" width="7" height="2.5" rx="1.25" fill="white" opacity="0.7" />
-              <circle cx="17" cy="16" r="3.5" fill="hsl(217 91% 45%)" />
-              <path d="M15.8 16l1 1 1.5-1.5" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M12 4c0 0-3.5 3.5-3.5 7 0 2 1.2 3.2 1.2 3.2s-.4-1.6.8-3c.4 1.6 1.6 2.8 1.6 4.5.8-.8 1.2-2 1.2-3.2.8 1.2.8 2.8.8 2.8s1.6-1.6 1.6-3.8c0-2.4-1.6-4.5-1.6-4.5s.4 2.4-1.2 3.2C12.4 7.5 12 4 12 4z" fill="white" opacity="0.95" />
+              <circle cx="12" cy="18.5" r="1.2" fill="white" opacity="0.6" />
             </svg>
-            <span className="text-sm font-semibold tracking-tight">DocMind</span>
+            <span className="text-sm font-semibold tracking-tight">PrometheonAI</span>
           </div>
           <button
             onClick={() => setOpen(false)}

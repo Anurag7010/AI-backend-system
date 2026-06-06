@@ -51,7 +51,7 @@ export function OnboardingFlow({ onDone }: OnboardingFlowProps) {
       className="fixed inset-0 z-50 bg-background"
       role="dialog"
       aria-modal="true"
-      aria-label="Welcome to DocMind"
+      aria-label="Welcome to PrometheonAI"
     >
       {/* Skip button — always accessible */}
       <button

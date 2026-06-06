@@ -49,6 +49,15 @@ function IconAgent() {
   )
 }
 
+function IconSearch() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8.5" cy="8.5" r="5.5" />
+      <path d="M17 17l-4-4" />
+    </svg>
+  )
+}
+
 function IconSettings() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
@@ -60,12 +69,12 @@ function IconSettings() {
 
 function IconLogo() {
   return (
-    <svg viewBox="0 0 28 28" fill="none">
+    <svg viewBox="0 0 28 28" fill="none" className="size-7 shrink-0">
       <rect width="28" height="28" rx="7" fill="hsl(217 91% 60%)" />
-      <rect x="6" y="7" width="10" height="14" rx="2" fill="white" opacity="0.9" />
-      <rect x="13" y="11" width="9" height="3" rx="1.5" fill="white" opacity="0.7" />
-      <circle cx="20" cy="18" r="4" fill="hsl(217 91% 45%)" />
-      <path d="M18.5 18l1 1 2-2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Prometheus flame */}
+      <path d="M14 5c0 0-4 4-4 8 0 2.5 1.5 4 1.5 4s-.5-2 1-3.5c.5 2 2 3.5 2 5.5 1-1 1.5-2.5 1.5-4 1 1.5 1 3.5 1 3.5S19 17 19 14c0-3-2-5.5-2-5.5s.5 3-1.5 4C14.5 10 14 5 14 5z" fill="white" opacity="0.95" />
+      {/* Neural dot */}
+      <circle cx="14" cy="21" r="1.5" fill="white" opacity="0.6" />
     </svg>
   )
 }
@@ -75,6 +84,7 @@ const navItems = [
   { href: '/documents', label: 'Documents', icon: IconDocuments },
   { href: '/chat',      label: 'Chat',      icon: IconChat      },
   { href: '/agent',     label: 'Agent',     icon: IconAgent     },
+  { href: '/search',    label: 'Search',    icon: IconSearch    },
 ]
 
 interface NavItemProps {
@@ -143,7 +153,7 @@ export function Sidebar({ email }: SidebarProps) {
       {/* Wordmark */}
       <div className="flex h-14 items-center gap-2.5 border-b border-border px-4">
         <IconLogo />
-        <span className="text-sm font-semibold tracking-tight text-foreground">DocMind</span>
+        <span className="text-sm font-semibold tracking-tight text-foreground">PrometheonAI</span>
       </div>
 
       {/* Search / command palette */}
