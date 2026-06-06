@@ -1,3 +1,5 @@
+'use client'
+
 import dynamic from 'next/dynamic'
 
 const MemoryPanel = dynamic(() => import('@/components/features/MemoryPanel'), { ssr: false })

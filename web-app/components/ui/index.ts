@@ -46,3 +46,12 @@ export { MessageBubble } from './MessageBubble'
 export { FileUpload } from './FileUpload'
 export { default as ThemeToggle } from './ThemeToggle'
 export { AccessibilityWrapper } from './AccessibilityWrapper'
+
+// New Day 15
+export { InlineError } from './InlineError'
+export {
+  DashboardSkeleton,
+  DocumentsSkeleton,
+  ChatSkeleton,
+  GenericSkeleton,
+} from './PageLoader'

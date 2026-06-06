@@ -4,17 +4,17 @@ import { MessageBubble } from "../../components/ui/MessageBubble";
 import type { Message } from "../../types";
 
 describe("MessageBubble", () => {
-  it("user message has right-alignment class", () => {
+  it("user message is right-aligned (flex-row-reverse)", () => {
     const message: Message = { role: "user", content: "hello" };
     const { container } = render(<MessageBubble message={message} />);
-    // justify-end aligns user messages to the right
-    expect(container.querySelector(".justify-end")).toBeInTheDocument();
+    // New layout: flex-row-reverse on the wrapper row for user messages
+    expect(container.querySelector(".flex-row-reverse")).toBeInTheDocument();
   });
 
-  it("assistant message has left-alignment class", () => {
+  it("assistant message is not right-aligned", () => {
     const message: Message = { role: "assistant", content: "hello" };
     const { container } = render(<MessageBubble message={message} />);
-    expect(container.querySelector(".justify-start")).toBeInTheDocument();
+    expect(container.querySelector(".flex-row-reverse")).not.toBeInTheDocument();
   });
 
   it("renders message content", () => {
@@ -29,16 +29,14 @@ describe("MessageBubble", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("preserves newlines in content via whitespace-pre-wrap class", () => {
+  it("user message content uses whitespace-pre-wrap", () => {
     const message: Message = {
-      role: "assistant",
+      role: "user",
       content: "Line one\nLine two",
     };
     const { container } = render(<MessageBubble message={message} />);
-    // whitespace-pre-wrap tells the browser to render \n as line breaks
     const preWrap = container.querySelector(".whitespace-pre-wrap");
     expect(preWrap).toBeInTheDocument();
-    // getByText normalizes whitespace — use textContent to check the raw newline
     expect(preWrap?.textContent).toBe("Line one\nLine two");
   });
 });

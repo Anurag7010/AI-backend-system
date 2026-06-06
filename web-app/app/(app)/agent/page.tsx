@@ -1,4 +1,5 @@
-import { Metadata } from 'next'
+'use client'
+
 import dynamic from 'next/dynamic'
 import { Spinner } from '@/components/ui'
 
@@ -13,8 +14,6 @@ const AgentInterface = dynamic(
     ),
   }
 )
-
-export const metadata: Metadata = { title: 'Agent' }
 
 export default function AgentPage() {
   return (

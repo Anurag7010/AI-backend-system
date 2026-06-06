@@ -62,12 +62,14 @@ const MOCK_USER = {
   email: 'test@example.com',
   passwordHash: '$2b$12$hashedpassword',
   tokenVersion: 0,
+  onboardingCompleted: null as Date | null,
   createdAt: new Date(),
 }
 
 const MOCK_USER_SAFE = {
   id: 'user-uuid-1',
   email: 'test@example.com',
+  onboardingCompleted: null as Date | null,
   createdAt: new Date(),
 }
 

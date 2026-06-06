@@ -87,22 +87,36 @@ const config: Config = {
           900: '#7f1d1d',
         },
 
-        // Surface colors via CSS custom properties.
-        // These reference CSS variables defined in globals.css that change in dark mode.
-        // Why CSS vars instead of dark: variants?
-        // With CSS vars: one class (bg-background) works in both modes automatically.
-        // With dark: variants: every component needs 'bg-white dark:bg-gray-900' — verbose and error-prone.
-        background:         'hsl(var(--background))',
-        foreground:         'hsl(var(--foreground))',
-        card:               'hsl(var(--card))',
-        'card-foreground':  'hsl(var(--card-foreground))',
-        muted:              'hsl(var(--muted))',
-        'muted-foreground': 'hsl(var(--muted-foreground))',
-        border:             'hsl(var(--border))',
-        input:              'hsl(var(--input))',
-        ring:               'hsl(var(--ring))',
-        primary:            'hsl(var(--primary))',
-        'primary-foreground': 'hsl(var(--primary-foreground))',
+        // Surface + semantic colors via CSS custom properties.
+        // CSS vars change in dark mode automatically — one class works in both modes.
+        background:                  'hsl(var(--background))',
+        foreground:                  'hsl(var(--foreground))',
+        card:                        'hsl(var(--card))',
+        'card-foreground':           'hsl(var(--card-foreground))',
+        popover:                     'hsl(var(--popover))',
+        'popover-foreground':        'hsl(var(--popover-foreground))',
+        muted:                       'hsl(var(--muted))',
+        'muted-foreground':          'hsl(var(--muted-foreground))',
+        accent:                      'hsl(var(--accent))',
+        'accent-foreground':         'hsl(var(--accent-foreground))',
+        border:                      'hsl(var(--border))',
+        input:                       'hsl(var(--input))',
+        ring:                        'hsl(var(--ring))',
+        primary:                     'hsl(var(--primary))',
+        'primary-foreground':        'hsl(var(--primary-foreground))',
+        secondary:                   'hsl(var(--secondary))',
+        'secondary-foreground':      'hsl(var(--secondary-foreground))',
+        destructive:                 'hsl(var(--destructive))',
+        'destructive-foreground':    'hsl(var(--destructive-foreground))',
+        'brand-css':                 'hsl(var(--brand))',
+        'brand-foreground':          'hsl(var(--brand-foreground))',
+        'brand-muted-css':           'hsl(var(--brand-muted))',
+        'success-css':               'hsl(var(--success))',
+        'success-foreground':        'hsl(var(--success-foreground))',
+        'success-muted-css':         'hsl(var(--success-muted))',
+        'warning-css':               'hsl(var(--warning))',
+        'warning-foreground':        'hsl(var(--warning-foreground))',
+        'warning-muted-css':         'hsl(var(--warning-muted))',
       },
 
       fontFamily: {
@@ -136,14 +150,11 @@ const config: Config = {
       },
 
       boxShadow: {
-        // Shadows encode elevation — higher shadow = more prominent/elevated.
-        // sm: cards (resting on the page)
-        // md: dropdowns (above the page)
-        // lg: modals (highest elevation)
-        sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-        md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-        lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-        xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+        xs:  '0 1px 2px 0 rgb(0 0 0 / 0.04)',
+        sm:  '0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08)',
+        md:  '0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08)',
+        lg:  '0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08)',
+        xl:  '0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08)',
       },
 
       transitionDuration: {

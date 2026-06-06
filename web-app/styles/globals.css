@@ -1,155 +1,309 @@
-/* Tailwind directives — order matters:
-   base: resets and html/body defaults
-   components: reusable class-based patterns
-   utilities: single-purpose utility classes (always last — highest specificity) */
+/* Tailwind directives — base → components → utilities (specificity order) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================
-   CSS CUSTOM PROPERTIES — LIGHT MODE
-   Values are raw HSL numbers without hsl() wrapper.
+   DESIGN SYSTEM — CSS CUSTOM PROPERTIES
+   All values are raw HSL numbers (no hsl() wrapper).
    Tailwind wraps them: background: 'hsl(var(--background))'
-   This lets us use opacity modifiers: bg-background/50
-   If we wrote hsl() inside the variable, opacity modifiers would break.
-   ============================================================ */
-:root {
-  --background:         0 0% 100%;    /* white */
-  --foreground:         0 0% 9%;      /* near-black text */
-  --card:               0 0% 100%;    /* white card surface */
-  --card-foreground:    0 0% 9%;
-  --muted:              0 0% 96%;     /* very light gray — subtle backgrounds */
-  --muted-foreground:   0 0% 45%;     /* medium gray — secondary text */
-  --border:             0 0% 90%;     /* light border */
-  --input:              0 0% 90%;     /* input border color */
-  --ring:               221 83% 53%;  /* brand blue — focus rings */
-  --primary:            221 83% 53%;  /* brand blue — primary actions */
-  --primary-foreground: 0 0% 100%;    /* white text on primary buttons */
-  --radius:             0.5rem;       /* base radius for runtime JS access */
-}
-
-/* ============================================================
-   DARK MODE OVERRIDES
-   Applied when 'dark' class is on <html>.
-   Only surface colors change — semantic colors (success/error) stay the same.
-   ============================================================ */
-.dark {
-  --background:         0 0% 7%;      /* near-black background */
-  --foreground:         0 0% 95%;     /* near-white text */
-  --card:               0 0% 10%;     /* dark card surface */
-  --card-foreground:    0 0% 95%;
-  --muted:              0 0% 15%;     /* dark muted surface */
-  --muted-foreground:   0 0% 64%;     /* lighter gray for secondary text */
-  --border:             0 0% 18%;     /* dark border — subtle */
-  --input:              0 0% 18%;
-  --ring:               221 83% 53%;  /* same blue — visible on dark */
-  --primary:            221 83% 53%;
-  --primary-foreground: 0 0% 100%;
-}
-
-/* ============================================================
-   BASE LAYER — applied before components and utilities
-   @layer base keeps specificity low — utilities can always override
+   This enables opacity modifiers: bg-background/50
    ============================================================ */
 @layer base {
-  /* Apply border-border to all borders by default.
-     Without this: borders use Tailwind's default (currentColor) not our CSS var.
-     border-border means 'use the --border CSS variable color for all borders'. */
-  * {
-    @apply border-border box-border;
+  :root {
+    /* Surface colors */
+    --background:              0 0% 98%;
+    --foreground:              240 10% 3.9%;
+    --card:                    0 0% 100%;
+    --card-foreground:         240 10% 3.9%;
+    --popover:                 0 0% 100%;
+    --popover-foreground:      240 10% 3.9%;
+
+    /* Interactive colors */
+    --primary:                 240 5.9% 10%;
+    --primary-foreground:      0 0% 98%;
+    --secondary:               240 4.8% 95.9%;
+    --secondary-foreground:    240 5.9% 10%;
+    --muted:                   240 4.8% 95.9%;
+    --muted-foreground:        240 3.8% 46.1%;
+    --accent:                  240 4.8% 95.9%;
+    --accent-foreground:       240 5.9% 10%;
+    --destructive:             0 84.2% 60.2%;
+    --destructive-foreground:  0 0% 98%;
+
+    /* Form + focus */
+    --border:                  240 5.9% 90%;
+    --input:                   240 5.9% 90%;
+    --ring:                    217 91% 60%;
+
+    /* Brand accent — electric blue for AI interactions */
+    --brand:                   217 91% 60%;
+    --brand-foreground:        0 0% 100%;
+    --brand-muted:             217 91% 95%;
+
+    /* Semantic */
+    --success:                 142 76% 36%;
+    --success-foreground:      0 0% 100%;
+    --success-muted:           142 76% 95%;
+    --warning:                 38 92% 50%;
+    --warning-foreground:      0 0% 100%;
+    --warning-muted:           38 92% 95%;
+
+    /* Radius */
+    --radius:                  0.5rem;
+
+    /* Elevation shadows */
+    --shadow-xs:   0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-sm:   0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+    --shadow-md:   0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);
+    --shadow-lg:   0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+    --shadow-xl:   0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+
+    /* Animation easing */
+    --ease-out:    cubic-bezier(0, 0, 0.2, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+    /* Duration */
+    --duration-fast:   100ms;
+    --duration-normal: 200ms;
+    --duration-slow:   300ms;
   }
 
-  body {
-    @apply bg-background text-foreground antialiased;
-    /* rlig: required ligatures (fi, fl etc.)
-       calt: contextual alternates — improves Inter readability at small sizes */
-    font-feature-settings: "rlig" 1, "calt" 1;
+  .dark {
+    --background:              240 10% 3.9%;
+    --foreground:              0 0% 98%;
+    --card:                    240 10% 5.5%;
+    --card-foreground:         0 0% 98%;
+    --popover:                 240 10% 5.5%;
+    --popover-foreground:      0 0% 98%;
+
+    --primary:                 0 0% 98%;
+    --primary-foreground:      240 5.9% 10%;
+    --secondary:               240 3.7% 13%;
+    --secondary-foreground:    0 0% 98%;
+    --muted:                   240 3.7% 13%;
+    --muted-foreground:        240 5% 64.9%;
+    --accent:                  240 3.7% 13%;
+    --accent-foreground:       0 0% 98%;
+    --destructive:             0 62.8% 50%;
+    --destructive-foreground:  0 0% 98%;
+
+    --border:                  240 3.7% 15%;
+    --input:                   240 3.7% 15%;
+    --ring:                    217 91% 65%;
+
+    --brand:                   217 91% 65%;
+    --brand-muted:             217 91% 10%;
+    --success-muted:           142 76% 8%;
+    --warning-muted:           38 92% 8%;
   }
 
-  /* Consistent focus ring across all interactive elements.
-     :focus-visible only shows ring on keyboard navigation — not mouse click.
-     This is the correct accessibility behavior. */
-  :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  /* Border + box-sizing reset */
+  *, *::before, *::after {
+    @apply border-border;
+    box-sizing: border-box;
   }
 
-  /* Custom scrollbar — subtle, works in both light and dark mode.
-     Only applies in WebKit browsers (Chrome, Safari, Edge).
-     Firefox uses scrollbar-color property which we skip for simplicity. */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply bg-neutral-300 dark:bg-neutral-700 rounded-full;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-neutral-400 dark:bg-neutral-600;
-  }
-
-  /* Text selection color — brand-colored for consistency */
-  ::selection {
-    @apply bg-brand-200 text-brand-900 dark:bg-brand-800 dark:text-brand-100;
-  }
-
-  /* Smooth scrolling — improves UX for anchor navigation */
   html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
   }
 
-  /* Headings — consistent weight, tight line height */
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
+  }
+
+  /* Refined scrollbar */
+  ::-webkit-scrollbar        { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  {
+    background: hsl(var(--border));
+    border-radius: 100px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Focus ring — brand colored */
+  :focus-visible {
+    outline: 2px solid hsl(var(--brand));
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Selection */
+  ::selection {
+    background: hsl(var(--brand) / 0.15);
+    color: hsl(var(--foreground));
   }
 }
 
 /* ============================================================
-   COMPONENT LAYER — reusable patterns that components can @apply
-   These are higher-level than utilities but lower than component files.
-   Use sparingly — most styling belongs in component files with cn().
+   COMPONENT LAYER — reusable patterns
    ============================================================ */
 @layer components {
-  /* Prose styling for AI response content.
-     .prose comes from @tailwindcss/typography.
-     prose-neutral: neutral color scheme.
-     prose-invert: light text for dark backgrounds.
-     max-w-none: override prose's default max-width (we control width in the layout). */
+  /* Card base — used by the .card class referenced throughout */
+  .card {
+    @apply bg-card text-card-foreground rounded-lg border border-border;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Prose for AI response content */
   .ai-response {
     @apply prose prose-neutral dark:prose-invert max-w-none;
-    /* Code blocks in AI responses — dark background regardless of mode */
     @apply prose-pre:bg-neutral-900 prose-pre:text-neutral-100 prose-pre:rounded-lg;
-    /* Inline code — brand colored */
     @apply prose-code:text-brand-600 dark:prose-code:text-brand-400;
-    /* Remove default prose code backtick pseudo-elements */
     @apply prose-code:before:content-none prose-code:after:content-none;
   }
 
-  /* Standard page layout container */
+  /* Prose-ai — used in AI chat bubbles */
+  .prose-ai {
+    @apply text-sm leading-relaxed text-foreground;
+  }
+  .prose-ai h1, .prose-ai h2, .prose-ai h3 { @apply font-semibold tracking-tight; }
+  .prose-ai h1 { @apply text-xl mt-6 mb-3; }
+  .prose-ai h2 { @apply text-lg mt-5 mb-2; }
+  .prose-ai h3 { @apply text-base mt-4 mb-2; }
+  .prose-ai p  { @apply mb-3 last:mb-0; }
+  .prose-ai ul { @apply pl-4 mb-3 space-y-1; }
+  .prose-ai li { @apply list-disc; }
+  .prose-ai code {
+    @apply font-mono text-xs bg-muted px-1.5 py-0.5 rounded;
+    font-size: 0.8em;
+  }
+  .prose-ai pre {
+    @apply font-mono text-xs bg-muted p-4 rounded-lg overflow-x-auto mb-3;
+  }
+  .prose-ai strong { @apply font-semibold; }
+  .prose-ai a { @apply underline-offset-4 hover:underline; color: hsl(var(--brand)); }
+
+  /* Page container */
   .page-container {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
-  /* Reusable card — background, border, radius, shadow */
-  .card {
-    @apply bg-card text-card-foreground rounded-lg border border-border shadow-sm;
+  /* Section patterns */
+  .section-header      { @apply mb-6; }
+  .section-title       { @apply text-2xl font-semibold text-foreground; }
+  .section-description { @apply text-sm text-muted-foreground mt-1; }
+
+  /* Glass effect — reserved for intentional overlay contexts only */
+  .glass {
+    backdrop-filter: blur(12px) saturate(1.5);
+    background: hsl(var(--background) / 0.85);
+    border: 1px solid hsl(var(--border) / 0.6);
   }
 
-  /* Section header pattern used on dashboard, documents page */
-  .section-header {
-    @apply mb-6;
+  /* Subtle grid background */
+  .bg-grid {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.4) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.4) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
 
-  .section-title {
-    @apply text-2xl font-semibold text-foreground;
+  /* Brand glow */
+  .glow-brand {
+    box-shadow: 0 0 40px hsl(var(--brand) / 0.15);
   }
 
-  .section-description {
-    @apply text-sm text-muted-foreground mt-1;
+  /* Status dot */
+  .status-dot         { @apply inline-block w-2 h-2 rounded-full; }
+  .status-dot.active  { @apply bg-green-500 animate-pulse; }
+  .status-dot.idle    { @apply bg-muted-foreground; }
+  .status-dot.error   { @apply bg-destructive; }
+
+  /* Keyboard shortcut badge */
+  .kbd {
+    @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-mono
+           bg-muted border border-border rounded
+           text-muted-foreground;
+    box-shadow: var(--shadow-xs);
   }
+
+  /* Uppercase label */
+  .label-uppercase {
+    @apply text-xs font-semibold uppercase tracking-widest text-muted-foreground;
+  }
+
+  /* Shimmer loading animation */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.1) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+/* ============================================================
+   KEYFRAMES — must live outside @layer
+   ============================================================ */
+@keyframes animate-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes animate-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes slide-in-from-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes slide-in-from-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes slide-in-from-bottom {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(0.95); box-shadow: 0 0 0 0 hsl(var(--brand) / 0.4); }
+  70%  { transform: scale(1);    box-shadow: 0 0 0 6px hsl(var(--brand) / 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 hsl(var(--brand) / 0); }
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+@layer utilities {
+  .animate-in         { animation: animate-in var(--duration-normal) var(--ease-out) both; }
+  .animate-out        { animation: animate-out var(--duration-fast) ease-in both; }
+  .animate-fade-in    { animation: fade-in var(--duration-normal) var(--ease-out) both; }
+  .animate-slide-bottom { animation: slide-in-from-bottom var(--duration-normal) var(--ease-out) both; }
+  .animate-slide-right  { animation: slide-in-from-right var(--duration-slow) var(--ease-out) both; }
+  .animate-slide-left   { animation: slide-in-from-left var(--duration-slow) var(--ease-out) both; }
+  .animate-pulse-ring   { animation: pulse-ring 1.5s ease-out infinite; }
+
+  .delay-75  { animation-delay: 75ms; }
+  .delay-100 { animation-delay: 100ms; }
+  .delay-150 { animation-delay: 150ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-500 { animation-delay: 500ms; }
 }

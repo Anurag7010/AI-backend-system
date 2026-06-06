@@ -38,3 +38,19 @@ export async function emailExists(email: string): Promise<boolean> {
   const rows = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
   return rows.length > 0
 }
+
+export async function markOnboardingComplete(userId: string): Promise<void> {
+  await db
+    .update(users)
+    .set({ onboardingCompleted: new Date() })
+    .where(eq(users.id, userId))
+}
+
+export async function isOnboardingComplete(userId: string): Promise<boolean> {
+  const rows = await db
+    .select({ onboardingCompleted: users.onboardingCompleted })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  return !!rows[0]?.onboardingCompleted
+}

@@ -1,94 +1,99 @@
-import { cn } from "@/lib/cn";
+import { cn } from '@/lib/cn'
 
-interface CardSubProps {
-  className?: string;
-  children: React.ReactNode;
+type Elevation = 0 | 1 | 2
+
+interface CardRootProps {
+  className?: string
+  children: React.ReactNode
+  elevation?: Elevation
+  interactive?: boolean
+  onClick?: () => void
 }
 
-function CardRoot({ className, children }: CardSubProps) {
-  return <div className={cn("card", className)}>{children}</div>;
+const elevationClasses: Record<Elevation, string> = {
+  0: 'shadow-none',
+  1: 'shadow-sm',
+  2: 'shadow-md',
+}
+
+function CardRoot({
+  className,
+  children,
+  elevation = 1,
+  interactive = false,
+  onClick,
+}: CardRootProps) {
+  const base = cn(
+    'bg-card text-card-foreground rounded-xl border border-border',
+    elevationClasses[elevation],
+    interactive && [
+      'cursor-pointer',
+      'transition-shadow duration-200',
+      'hover:shadow-md',
+      'active:scale-[0.995]',
+    ],
+    className,
+  )
+
+  if (interactive && onClick) {
+    return (
+      <div className={base} onClick={onClick} role="button" tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && onClick?.()}>
+        {children}
+      </div>
+    )
+  }
+
+  return <div className={base}>{children}</div>
+}
+
+interface CardSubProps {
+  className?: string
+  children: React.ReactNode
 }
 
 function CardHeader({ className, children }: CardSubProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-1 p-6 pb-4 border-b border-border",
-        className,
-      )}
-    >
+    <div className={cn('flex flex-col gap-1 p-5 border-b border-border', className)}>
       {children}
     </div>
-  );
+  )
 }
 
 function CardTitle({ className, children }: CardSubProps) {
   return (
-    <h3
-      className={cn(
-        "text-lg font-semibold text-foreground leading-tight",
-        className,
-      )}
-    >
+    <h3 className={cn('text-base font-semibold text-foreground leading-tight tracking-tight', className)}>
       {children}
     </h3>
-  );
+  )
 }
 
 function CardDescription({ className, children }: CardSubProps) {
   return (
-    <p className={cn("text-sm text-muted-foreground", className)}>{children}</p>
-  );
+    <p className={cn('text-sm text-muted-foreground', className)}>
+      {children}
+    </p>
+  )
 }
 
 function CardContent({ className, children }: CardSubProps) {
-  return <div className={cn("p-6", className)}>{children}</div>;
+  return <div className={cn('p-5', className)}>{children}</div>
 }
 
 function CardFooter({ className, children }: CardSubProps) {
   return (
-    <div
-      className={cn(
-        "flex items-center justify-end gap-3",
-        "px-6 py-4 border-t border-border",
-        className,
-      )}
-    >
+    <div className={cn('flex items-center gap-3 px-5 py-4 border-t border-border', className)}>
       {children}
     </div>
-  );
+  )
 }
 
-// Attach sub-components to Card for compound component usage:
-// <Card.Header><Card.Title>Title</Card.Title></Card.Header>
-// Also exported individually for direct import:
-// import { CardHeader } from '@/components/ui/Card'
 export const Card = Object.assign(CardRoot, {
   Header: CardHeader,
   Title: CardTitle,
   Description: CardDescription,
   Content: CardContent,
   Footer: CardFooter,
-});
+})
 
-export { CardHeader, CardTitle, CardDescription, CardContent, CardFooter };
-
-/*
-Usage examples:
-
-// Compound component style:
-<Card>
-  <Card.Header>
-    <Card.Title>Documents</Card.Title>
-    <Card.Description>Manage your uploaded files</Card.Description>
-  </Card.Header>
-  <Card.Content>content here</Card.Content>
-  <Card.Footer><Button>Save</Button></Card.Footer>
-</Card>
-
-// Direct import style:
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
-<Card>
-  <CardHeader><CardTitle>Title</CardTitle></CardHeader>
-</Card>
-*/
+export { CardHeader, CardTitle, CardDescription, CardContent, CardFooter }

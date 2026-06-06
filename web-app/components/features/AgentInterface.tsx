@@ -1,166 +1,213 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAgent } from '@/hooks'
-import { Button, Input, Spinner, Badge, AsyncBoundary } from '@/components/ui'
+import { AgentStepCard } from '@/components/agent/AgentStepCard'
+import { ChatInput } from '@/components/chat/ChatInput'
+import { Badge, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
-import type { AgentStep, AgentRunResponse } from '@/types'
 
-interface ReasoningStepProps {
-  step: AgentStep
-  isLast: boolean
-}
-
-function ReasoningStep({ step, isLast }: ReasoningStepProps) {
-  const [expanded, setExpanded] = useState(isLast)
-
-  return (
-    <div className={cn(
-      'border-l-2 pl-4 py-2',
-      step.isFinal ? 'border-green-500' : 'border-blue-300'
-    )}>
-      <button
-        onClick={() => setExpanded(prev => !prev)}
-        className="flex items-center gap-2 text-sm font-medium text-foreground w-full text-left"
-      >
-        <Badge variant={step.isFinal ? 'success' : 'brand'}>
-          {step.isFinal ? 'Final Answer' : `Step ${step.stepNumber}`}
-        </Badge>
-        {step.action && (
-          <span className="text-muted-foreground">→ {step.action}</span>
-        )}
-        <span className="ml-auto text-muted-foreground text-xs">
-          {expanded ? '▲' : '▼'}
-        </span>
-      </button>
-
-      {expanded && (
-        <div className="mt-2 space-y-2 text-sm">
-          {step.action && step.actionInput && (
-            <div>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                Tool Input
-              </p>
-              <pre className="bg-muted rounded p-2 text-xs overflow-x-auto">
-                {JSON.stringify(step.actionInput, null, 2)}
-              </pre>
-            </div>
-          )}
-          {step.observation && (
-            <div>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                Observation
-              </p>
-              <pre className="bg-muted rounded p-2 text-xs overflow-x-auto whitespace-pre-wrap">
-                {step.observation.length > 500
-                  ? step.observation.slice(0, 500) + '...'
-                  : step.observation}
-              </pre>
-            </div>
-          )}
-          {step.finalAnswer && (
-            <div>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                Answer
-              </p>
-              <p className="text-foreground">{step.finalAnswer}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
+const SUGGESTED_QUERIES = [
+  {
+    label: 'List my documents',
+    query: 'What documents do I have and how many chunks does each have?',
+  },
+  {
+    label: 'Calculate from data',
+    query: 'If I have 5 documents averaging 42 chunks each, how many total chunks is that?',
+  },
+  {
+    label: 'Search + summarize',
+    query: 'Search for the main conclusions in my documents and summarize them',
+  },
+  {
+    label: 'Web + documents',
+    query: 'What are the latest developments in the topic covered by my documents?',
+  },
+]
 
 export default function AgentInterface() {
   const { state, steps, isRunning, run, reset } = useAgent()
   const [query, setQuery] = useState('')
+  const stepsEndRef = useRef<HTMLDivElement>(null)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  useEffect(() => {
+    if (steps.length > 0) {
+      stepsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [steps])
+
+  async function handleSubmit() {
     if (!query.trim() || isRunning) return
-    const q = query
+    const q = query.trim()
     setQuery('')
     await run(q)
   }
 
+  const hasResult = state.status === 'success' || state.status === 'error'
+
   return (
-    <div className="flex flex-col gap-4 h-full">
-      <div>
-        <h2 className="text-lg font-semibold">Agent</h2>
-        <p className="text-sm text-muted-foreground">
-          For multi-step tasks: listing documents, calculations, comparisons
-        </p>
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="shrink-0 px-6 py-4 border-b border-border">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-foreground flex items-center gap-2">
+              <span className="w-5 h-5 rounded-md bg-brand/10 flex items-center justify-center">
+                <svg viewBox="0 0 16 16" className="size-3 fill-current text-brand">
+                  <path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5z" />
+                </svg>
+              </span>
+              Agent
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Multi-step reasoning with tool use
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isRunning && (
+              <div className="flex items-center gap-1.5 text-xs text-brand">
+                <Spinner size="sm" />
+                <span>Step {steps.length}...</span>
+              </div>
+            )}
+            {state.status === 'success' && (
+              <Badge variant="success">
+                {state.data.totalSteps} step{state.data.totalSteps !== 1 ? 's' : ''}
+              </Badge>
+            )}
+            {state.status === 'success' && state.data.stoppedReason === 'max_iterations' && (
+              <Badge variant="warning">Max steps</Badge>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-3">
-        <AsyncBoundary<AgentRunResponse>
-          state={state}
-          renderLoading={() => (
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
-              <Spinner size="sm" />
-              <span>Agent thinking... ({steps.length} steps so far)</span>
+      {/* Main content */}
+      <div className="flex-1 overflow-y-auto">
+        {steps.length === 0 && state.status === 'idle' ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="max-w-md w-full px-6 text-center">
+              <div className="w-12 h-12 rounded-xl bg-brand/10 flex items-center justify-center mx-auto mb-4">
+                <svg viewBox="0 0 24 24" className="size-6 fill-none stroke-current text-brand" strokeWidth="1.5">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-foreground mb-1">Multi-step AI reasoning</h3>
+              <p className="text-sm text-muted-foreground mb-5">
+                The agent breaks complex tasks into steps, uses tools, and shows its full reasoning trace.
+              </p>
+
+              <div className="flex flex-wrap gap-1.5 justify-center mb-6">
+                {['Search docs', 'List files', 'Calculate', 'Web search', 'Get metadata'].map((cap) => (
+                  <span
+                    key={cap}
+                    className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border"
+                  >
+                    {cap}
+                  </span>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                {SUGGESTED_QUERIES.map((sq) => (
+                  <button
+                    key={sq.label}
+                    onClick={() => setQuery(sq.query)}
+                    className={cn(
+                      'w-full text-left px-4 py-3 rounded-xl border border-border',
+                      'hover:bg-accent hover:border-brand/30 transition-all duration-150 group',
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">{sq.label}</span>
+                      <span className="text-muted-foreground group-hover:text-brand transition-colors text-sm">→</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{sq.query}</p>
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
-          renderError={(error) => (
-            <div className="border border-red-500 bg-red-50 dark:bg-red-900/20 rounded p-4">
-              <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
-            </div>
-          )}
-          renderSuccess={(result) => (
-            <div className="space-y-3">
-              {result.steps.length > 0 && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wide font-medium">
-                    Reasoning Trace ({result.totalSteps} steps)
-                  </p>
-                  <div className="space-y-2">
-                    {result.steps.map((step, i) => (
-                      <ReasoningStep
-                        key={step.stepNumber}
-                        step={step}
-                        isLast={i === result.steps.length - 1}
-                      />
-                    ))}
+          </div>
+        ) : (
+          <div className="px-6 py-6 max-w-2xl mx-auto w-full">
+            {/* Query recap */}
+            {steps.length > 0 && (
+              <div className="mb-6 p-4 rounded-xl bg-muted/50 border border-border">
+                <p className="label-uppercase mb-1">Query</p>
+                <p className="text-sm text-foreground">
+                  {/* Show the thought from step 1 if available, else query */}
+                  {query || (steps[0]?.actionInput ? JSON.stringify(steps[0].actionInput) : 'Running...')}
+                </p>
+              </div>
+            )}
+
+            {/* Reasoning trace */}
+            <div>
+              <p className="label-uppercase mb-4">Reasoning Trace</p>
+              <div>
+                {steps.map((step, i) => (
+                  <AgentStepCard
+                    key={step.stepNumber}
+                    step={step}
+                    isLast={i === steps.length - 1 && !isRunning}
+                  />
+                ))}
+
+                {isRunning && (
+                  <div className="flex gap-3 items-center py-2 pl-3">
+                    <div className="shrink-0 w-7 h-7 rounded-full border-2 border-brand/30 bg-brand/5 flex items-center justify-center">
+                      <Spinner size="sm" />
+                    </div>
+                    <span className="text-xs text-muted-foreground animate-pulse">Thinking...</span>
                   </div>
-                </div>
-              )}
-              {result.stoppedReason === 'max_iterations' && (
-                <Badge variant="warning">
-                  Reached maximum steps — answer may be incomplete
-                </Badge>
-              )}
+                )}
+              </div>
             </div>
-          )}
-          renderIdle={() => (
-            <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-              Ask a multi-step question to see the agent reason through it
-            </div>
-          )}
-        />
+
+            {state.status === 'error' && (
+              <div className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+                <p className="text-sm text-destructive">{state.error}</p>
+              </div>
+            )}
+
+            {hasResult && (
+              <div className="mt-6 flex gap-2">
+                <button
+                  onClick={reset}
+                  className="text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-accent transition-colors"
+                >
+                  New task
+                </button>
+                {state.status === 'success' && (
+                  <button
+                    onClick={() => navigator.clipboard.writeText(state.data.answer)}
+                    className="text-sm px-3 py-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+                  >
+                    Copy answer
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div ref={stepsEndRef} />
+          </div>
+        )}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <Input
+      {/* Input */}
+      <div className="shrink-0 px-6 py-4 border-t border-border bg-background/80 backdrop-blur-sm">
+        <ChatInput
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="How many documents do I have? Calculate the total pages..."
+          onChange={setQuery}
+          onSubmit={handleSubmit}
+          isStreaming={isRunning}
           disabled={isRunning}
-          fullWidth
+          placeholder="Give the agent a multi-step task..."
         />
-        <Button
-          type="submit"
-          disabled={!query.trim() || isRunning}
-          loading={isRunning}
-        >
-          Run
-        </Button>
-        {state.status !== 'idle' && (
-          <Button variant="ghost" onClick={reset} disabled={isRunning}>
-            Clear
-          </Button>
-        )}
-      </form>
+      </div>
     </div>
   )
 }

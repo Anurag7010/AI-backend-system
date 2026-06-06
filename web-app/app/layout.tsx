@@ -15,11 +15,21 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
   title: {
-    template: "%s | AI Product",
-    default: "AI Product",
+    template: '%s · DocMind',
+    default: 'DocMind — AI Document Intelligence',
   },
-  description: "AI-powered document Q&A and retrieval system",
+  description: 'Upload your documents and have natural conversations with them. Powered by RAG, streaming AI, and persistent memory.',
+  keywords: ['AI', 'document', 'RAG', 'chat', 'PDF', 'question answering'],
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    siteName: 'DocMind',
+    title: 'DocMind — AI Document Intelligence',
+    description: 'Upload your documents and have natural conversations with them.',
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({

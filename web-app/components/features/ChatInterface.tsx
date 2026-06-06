@@ -1,178 +1,235 @@
-"use client";
+'use client'
 
-import React, { useState, useCallback } from "react";
-import { useAsk } from "../../hooks/useAsk";
-import { MessageBubble } from "../ui/MessageBubble";
-import { AsyncBoundary } from "../ui/AsyncBoundary";
-import type { Message, Source } from "../../types";
+import { useState, useRef, useEffect } from 'react'
+import { useAsk } from '@/hooks/useAsk'
+import { ConversationSidebar } from '@/components/chat/ConversationSidebar'
+import { MessageBubble } from '@/components/ui/MessageBubble'
+import { ChatInput } from '@/components/chat/ChatInput'
+import { cn } from '@/lib/cn'
+import { getAccessToken } from '@/hooks'
+import type { Message } from '@/types'
 
-function StreamingBubble({ content }: { content: string }) {
-  return (
-    <div className="flex justify-start mb-3">
-      <div className="max-w-[75%] rounded-2xl bg-muted px-4 py-2 text-sm text-foreground">
-        <p className="whitespace-pre-wrap">
-          {content || <span className="text-muted-foreground text-xs">Generating...</span>}
-          <span className="ml-0.5 inline-block animate-pulse text-foreground">▋</span>
-        </p>
-      </div>
-    </div>
-  );
+interface ChatInterfaceProps {
+  documentId?: string
+  documentName?: string
 }
 
-export function ChatInterface(): React.ReactElement {
-  const { state, messages, askStream, clearHistory, isStreaming } = useAsk();
-  const [input, setInput] = useState("");
+const SUGGESTED_QUESTIONS = [
+  'What is the main topic?',
+  'Summarize the key points',
+  'What are the conclusions?',
+]
 
-  const handleSend = useCallback(async () => {
-    const query = input.trim();
-    if (!query) return;
-    setInput("");
-    await askStream(query);
-  }, [input, askStream]);
+export function ChatInterface({ documentId, documentName }: ChatInterfaceProps) {
+  const [query, setQuery] = useState('')
+  const [conversationId, setConversationId] = useState<string | null>(null)
+  const [showSidebar, setShowSidebar] = useState(true)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { state, messages, askStream, clearHistory, isStreaming } = useAsk()
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend],
-  );
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isStreaming])
 
-  const isDisabled = isStreaming || state.status === "loading";
-  const lastIndex = messages.length - 1;
+  async function ensureConversation(): Promise<string> {
+    if (conversationId) return conversationId
+    const token = getAccessToken()
+    const res = await fetch('/api/conversations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+    const data: unknown = await res.json()
+    const id = data && typeof data === 'object' && 'id' in data ? String(data.id) : ''
+    setConversationId(id)
+    return id
+  }
+
+  async function handleSubmit() {
+    if (!query.trim() || isStreaming) return
+    const q = query.trim()
+    setQuery('')
+    await ensureConversation()
+    await askStream(q)
+  }
+
+  function handleNewConversation() {
+    clearHistory()
+    setConversationId(null)
+    setQuery('')
+  }
+
+  function handleSelectConversation(id: string) {
+    clearHistory()
+    setConversationId(id)
+  }
+
+  const lastIndex = messages.length - 1
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Message history */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {messages.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground">
-            Ask a question to get started
-          </p>
-        )}
-        {messages.map((message: Message, index: number) => {
-          // The last assistant message during streaming gets a live cursor instead of
-          // the regular bubble — MessageBubble hides empty content so we render inline.
-          const isActiveStream =
-            isStreaming && index === lastIndex && message.role === "assistant";
+    <div className="flex h-full overflow-hidden">
+      {/* Conversation sidebar */}
+      {showSidebar && (
+        <div className="w-60 shrink-0 hidden md:block">
+          <ConversationSidebar
+            currentConversationId={conversationId ?? undefined}
+            onSelect={handleSelectConversation}
+            onNew={handleNewConversation}
+          />
+        </div>
+      )}
 
-          if (isActiveStream) {
-            return <StreamingBubble key={index} content={message.content} />;
-          }
-          return (
-            <div key={index}>
-              <MessageBubble message={message} />
-              {message.role === "assistant" && message.sources && message.sources.length > 0 && (
-                <div className="ml-2 mt-2 mb-3 border-t pt-2 text-xs text-muted-foreground max-w-[75%]">
-                  <p className="font-medium mb-1">Sources</p>
-                  {message.sources.map((source: Source, i: number) => (
-                    <div key={i} className="mb-1 truncate">
-                      <span className="font-mono">[Source {source.citationId ?? i + 1}]</span>{' '}
-                      {source.metadata?.source as string ?? 'Document'}
-                      {source.score != null && (
-                        <span className="ml-1 opacity-60">{(source.score * 100).toFixed(0)}%</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* Bounce dots for non-streaming loading (e.g. ask() fallback path) */}
-        {!isStreaming && (
-          <AsyncBoundary
-            state={state}
-            renderLoading={() => (
-              <div className="flex justify-start mb-3">
-                <div className="rounded-2xl bg-muted px-4 py-2">
-                  <div className="flex gap-1">
-                    <span className="animate-bounce text-muted-foreground">●</span>
-                    <span
-                      className="animate-bounce text-muted-foreground"
-                      style={{ animationDelay: "0.1s" }}
-                    >
-                      ●
-                    </span>
-                    <span
-                      className="animate-bounce text-muted-foreground"
-                      style={{ animationDelay: "0.2s" }}
-                    >
-                      ●
-                    </span>
-                  </div>
-                </div>
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground hidden md:flex"
+              title="Toggle sidebar"
+            >
+              <svg viewBox="0 0 16 16" className="size-4 fill-none stroke-current" strokeWidth="1.5">
+                <rect x="2" y="2" width="12" height="12" rx="1.5" />
+                <path d="M6 2v12" />
+              </svg>
+            </button>
+            {documentName && (
+              <div className="flex items-center gap-1.5 text-xs bg-brand/10 text-brand px-2.5 py-1 rounded-full">
+                <svg viewBox="0 0 16 16" className="size-3 fill-current opacity-70">
+                  <path d="M3 1h7l3 3v11H3V1z" />
+                </svg>
+                <span className="font-medium truncate max-w-[160px]">{documentName}</span>
               </div>
             )}
-            renderError={(error) => {
-              const isUnavailable = typeof error === 'string' && error.includes('temporarily unavailable')
-              if (isUnavailable) {
-                return (
-                  <div className="flex flex-col items-center gap-2 mt-2">
-                    <p className="text-center text-xs text-amber-600">
-                      AI service is temporarily unavailable — your documents are safe
-                    </p>
-                    <button
-                      onClick={() => askStream(input || (messages[messages.length - 2]?.content ?? ''))}
-                      className="text-xs text-primary underline hover:no-underline"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                )
-              }
-              return <p className="text-center text-xs text-red-500 mt-2">{error}</p>
-            }}
-            renderSuccess={() => null}
-            renderIdle={() => null}
-          />
-        )}
-      </div>
-
-      {/* Controls */}
-      <div className="border-t border-border p-4">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isDisabled}
-            placeholder="Ask a question..."
-            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:bg-muted"
-          />
-
-          <button
-            onClick={handleSend}
-            disabled={isDisabled || !input.trim()}
-            className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            Send
-          </button>
-
-          {/* Cancel only appears during active streaming */}
-          {isStreaming && (
+          </div>
+          {messages.length > 0 && (
             <button
-              onClick={clearHistory}
-              className="rounded-lg border border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
+              onClick={handleNewConversation}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              Cancel
+              New chat
             </button>
           )}
         </div>
 
-        {messages.length > 0 && !isStreaming && (
-          <button
-            onClick={clearHistory}
-            className="mt-2 text-xs text-muted-foreground hover:text-foreground"
-          >
-            Clear history
-          </button>
-        )}
+        {/* Messages area */}
+        <div className="flex-1 overflow-y-auto">
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center max-w-sm px-6">
+                <div className="w-12 h-12 rounded-xl bg-brand/10 flex items-center justify-center mx-auto mb-4">
+                  <svg viewBox="0 0 24 24" className="size-6 fill-current text-brand">
+                    <path d="M12 2l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-foreground mb-1">
+                  {documentName ? `Ask about "${documentName}"` : 'Ask about your documents'}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  {documentName
+                    ? 'Get instant answers from this document'
+                    : 'Upload a document and ask questions in natural language'}
+                </p>
+                <div className="space-y-2">
+                  {SUGGESTED_QUESTIONS.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => setQuery(suggestion)}
+                      className="w-full text-left text-sm px-3 py-2 rounded-lg border border-border
+                                 hover:bg-accent hover:border-brand/30 transition-all duration-150
+                                 text-muted-foreground hover:text-foreground"
+                    >
+                      {suggestion} →
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="px-4 py-6 space-y-6 max-w-3xl mx-auto w-full">
+              {messages.map((message: Message, i: number) => {
+                const isLast = i === lastIndex
+                const isLastAssistant = isLast && message.role === 'assistant'
+                const sources = isLastAssistant && state.status === 'success'
+                  ? state.data?.sources
+                  : message.sources
+                const retrievalQuality = isLastAssistant && state.status === 'success'
+                  ? state.data?.retrievalQuality
+                  : undefined
+                const routedTo = isLastAssistant && state.status === 'success'
+                  ? state.data?.routedTo
+                  : undefined
+
+                return (
+                  <MessageBubble
+                    key={i}
+                    message={message}
+                    sources={sources}
+                    isStreaming={isLastAssistant && isStreaming}
+                    retrievalQuality={retrievalQuality}
+                    routedTo={routedTo}
+                    onCopy={() => navigator.clipboard.writeText(message.content)}
+                    onRegenerate={
+                      isLastAssistant && !isStreaming
+                        ? () => {
+                            const lastUserMsg = [...messages]
+                              .reverse()
+                              .find((m) => m.role === 'user')
+                            if (lastUserMsg) askStream(lastUserMsg.content)
+                          }
+                        : undefined
+                    }
+                  />
+                )
+              })}
+
+              {state.status === 'error' && !isStreaming && (
+                <div
+                  className={cn(
+                    'flex items-center gap-2 text-sm text-destructive',
+                    'bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3',
+                  )}
+                >
+                  <span className="shrink-0">⚠</span>
+                  <span>{state.error}</span>
+                  <button
+                    onClick={() => {
+                      const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
+                      if (lastUserMsg) askStream(lastUserMsg.content)
+                    }}
+                    className="ml-auto text-xs underline hover:no-underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+
+        {/* Input area */}
+        <div className="shrink-0 px-4 py-4 border-t border-border bg-background/80 backdrop-blur-sm">
+          <div className="max-w-3xl mx-auto">
+            <ChatInput
+              value={query}
+              onChange={setQuery}
+              onSubmit={handleSubmit}
+              onCancel={clearHistory}
+              isStreaming={isStreaming}
+            />
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Answers generated from your documents · Verify important information
+            </p>
+          </div>
+        </div>
       </div>
     </div>
-  );
+  )
 }
+
+export default ChatInterface

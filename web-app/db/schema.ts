@@ -42,6 +42,8 @@ export const users = pgTable('users', {
 
   tokenVersion: integer('token_version').default(0).notNull(),
 
+  onboardingCompleted: timestamp('onboarding_completed', { withTimezone: true, mode: 'date' }),
+
   createdAt: timestamp('created_at', {
     // timestamptz — always store with timezone, always query in UTC
     withTimezone: true,

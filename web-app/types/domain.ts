@@ -106,7 +106,7 @@ export type LatencyBreakdown = {
 // Avoids sending full document data when only summary is needed
 export type DocumentSummary = Pick<
   Document,
-  'id' | 'filename' | 'status' | 'createdAt'
+  'id' | 'filename' | 'status' | 'chunkCount' | 'createdAt'
 >
 
 // CreateDocumentInput — strip fields the DB generates

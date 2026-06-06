@@ -10,6 +10,7 @@ function makeDoc(overrides: Partial<DocumentSummary> = {}): DocumentSummary {
     id: toDocumentId("doc-001"),
     filename: "test-document.pdf",
     status: "ingested",
+    chunkCount: 0,
     createdAt: new Date(),
     ...overrides,
   };
@@ -23,13 +24,14 @@ describe("DocumentCard", () => {
     expect(screen.getByText("test-document.pdf")).toBeInTheDocument();
   });
 
-  it.each<DocumentStatus>(["pending", "ingested", "failed"])(
-    "renders correct status badge for status: %s",
-    (status) => {
-      render(<DocumentCard document={makeDoc({ status })} />);
-      expect(screen.getByText(status)).toBeInTheDocument();
-    },
-  );
+  it.each<[DocumentStatus, string]>([
+    ["pending", "Pending"],
+    ["ingested", "Ready"],
+    ["failed", "Failed"],
+  ])("renders correct status badge for status: %s", (status, label) => {
+    render(<DocumentCard document={makeDoc({ status })} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
 
   it("does not render delete button when onDelete is not provided", () => {
     render(<DocumentCard document={makeDoc()} />);
@@ -59,6 +61,6 @@ describe("DocumentCard", () => {
   it("renders createdAt as relative time", () => {
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
     render(<DocumentCard document={makeDoc({ createdAt: twoHoursAgo })} />);
-    expect(screen.getByText(/2 hours ago/)).toBeInTheDocument();
+    expect(screen.getByText(/2h ago/)).toBeInTheDocument();
   });
 });
