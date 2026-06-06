@@ -81,7 +81,6 @@ Three interconnected systems:
   - 7 TypeScript tests (useAgent.test.ts) — all passing
   - 2 bugs found and fixed: Config import singleton pattern, router regex boundary
 - Day 12 (Phase 4): Memory Systems — COMPLETE
-- Next: Day 13 — Framework Awareness + MCP Concepts
 - Days 27+ (Day 12): Memory Systems — COMPLETE
   - ConversationBuffer: token-aware windowing (max 2000 tokens) with window/summary strategies
   - LongTermMemoryStore: ChromaDB-backed user fact store with dedup (cosine similarity >= 0.95)
@@ -93,8 +92,20 @@ Three interconnected systems:
   - ask route: conversationId param, auto-save messages, auto-title, fire-and-forget extraction
   - MemoryPanel component: view and delete memories in /settings page
   - 38 Python tests passing (test_conversation_buffer, test_long_term_memory, test_memory_extractor)
+- Day 13 (Phase 4): Framework Awareness + MCP Concepts — COMPLETE
+  - ObservabilityCallback: bridges LangChain events to structured logger (observability/langchain_callback.py)
+  - LCEL QA pipeline: parallel implementation to rag_interface — retriever | prompt | llm | parser (pipelines/lcel_qa_pipeline.py)
+  - Pipeline comparison script: proves LCEL and manual pipelines produce equivalent answers (pipelines/pipeline_comparison.py)
+  - MCP server: exposes search_documents, calculate, get_document_list via stdio transport (mcp_server/server.py)
+  - MCP test client: verifies tool discovery and calculate invocation (mcp_server/test_client.py)
+  - WebSearchTool: Tavily-powered web search with graceful fallback (agents/tools/web_search.py)
+  - Factory updated: create_agent() now accepts enable_web_search flag (agents/factory.py)
+  - Router updated: routes current/latest/recent/news/who-is queries to agent (agents/router.py)
+  - Architecture decisions documented: 3 ADRs + full system diagram (docs/architecture.md)
+  - 23 new Python tests — all passing (test_lcel_pipeline, test_web_search_tool, test_mcp_server)
+- Next: Day 14 — Evals + Production Thinking + Phase 4 Closure
 
-## System Capabilities (After Day 12)
+## System Capabilities (After Day 13)
 
 - Upload PDFs → ingested into vector store
 - Ask questions → auto-routed: simple → RAG pipeline, complex → ReAct agent
@@ -113,6 +124,19 @@ Three interconnected systems:
 - Memory extraction: facts automatically extracted after each conversation (background)
 - Memory injection: relevant memories injected into system prompt per query
 - Memory settings UI: users can view and delete their memories at /settings
+- LCEL QA pipeline (parallel to manual — learning artifact, see pipelines/lcel_qa_pipeline.py)
+- LangChain ObservabilityCallback — unified logging across chains (observability/langchain_callback.py)
+- MCP server exposing search_documents, calculate, get_document_list (stdio transport, connect with Claude Desktop)
+- Web search via Tavily — agent can access real-time information (agents/tools/web_search.py)
+- Query router updated: current/latest/recent/news/who-is queries → agent with web search
+- Architecture decision records in docs/architecture.md (LangChain vs Manual, MCP scope, Web search)
+
+## Framework Decisions (After Day 13)
+
+- LangChain USED for: LCEL standard RAG chains, observability callbacks
+- LangChain NOT used for: agent loop, memory, guardrails, output validation (manual code is clearer)
+- MCP server: stdio for Claude Desktop (HTTP/SSE deployment is future work)
+- WebSearchTool: graceful no-op when TAVILY_API_KEY is unset
 
 ## Project Structure
 

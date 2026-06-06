@@ -19,3 +19,7 @@ pydantic>=2.9.0
 fastapi>=0.100.0
 uvicorn>=0.30.0
 python-multipart>=0.0.9
+
+# Web search + MCP
+tavily-python>=0.3.0
+mcp>=1.0.0

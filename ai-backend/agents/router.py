@@ -24,6 +24,15 @@ AGENT_PATTERNS = [
     r'\bsum\b',
     r'\btotal\b',
     r'\bpercentage\b',
+    r'\bcurrent(ly)?\b',
+    r'\blatest\b',
+    r'\brecent\b',
+    r'\bnews\b',
+    r'\btoday\b',
+    r'\b20(2[4-9]|[3-9]\d)\b',  # years 2024+
+    r'\bwhat is .+ (company|startup|product)\b',
+    r'\bwho is\b',
+    r'\bwhen is\b',
 ]
 
 

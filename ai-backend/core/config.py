@@ -58,6 +58,9 @@ class Config:
     FAST_MODEL: str
     RELEVANCE_THRESHOLD: float
 
+    # ── Web search ────────────────────────────────────────────────────────────
+    TAVILY_API_KEY: str
+
     @classmethod
     def load(cls) -> "Config":
         """Load config from environment. Raises EnvironmentError if OPENAI_API_KEY is missing."""
@@ -75,6 +78,7 @@ class Config:
             MAX_QUERY_CHARS             = int(_optional("MAX_QUERY_CHARS",         "2000")),
             FAST_MODEL                  = _optional("FAST_MODEL",                  "gpt-4o-mini"),
             RELEVANCE_THRESHOLD         = float(_optional("RELEVANCE_THRESHOLD",   "0.65")),
+            TAVILY_API_KEY              = _optional("TAVILY_API_KEY",              ""),
         )
 
 
