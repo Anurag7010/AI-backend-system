@@ -121,7 +121,29 @@ Three interconnected systems:
   - 26 Python tests passing (test_rate_limiter, test_cost_controller, test_request_queue, test_llm_judge)
   - npx tsc --noEmit — zero errors
   - Phase 4 — COMPLETE
-- Next: Phase 5 — Final Product (Days 33-40)
+- Day 15 (Phase 5): UI Polish + Onboarding — COMPLETE
+  - globals.css: full design system (4px grid, CSS vars, brand palette, animations, shimmer)
+  - tailwind.config: added secondary, accent, destructive, brand-foreground, shadow-xs tokens
+  - Button.tsx: Radix Slot asChild, brand variant, icon-sm size, micro-interactions (active:scale-[0.98])
+  - Input.tsx: brand focus ring, error icon, smooth transitions, left/right element with pointer-events
+  - Card.tsx: 3 elevation levels (0/1/2), interactive variant with hover:shadow-md + active:scale
+  - Sidebar.tsx: Linear-quality, bg-tint active state (no side-stripe borders), UserAvatar, icon-only SignOutButton
+  - MobileSidebar.tsx: fixed top bar + animated drawer, backdrop dismiss, route-change close
+  - AppShell.tsx: client component wrapping server layout, onboarding state check on mount
+  - OnboardingFlow.tsx: 3-step flow (welcome/upload/ask), localStorage persistence, server sync
+  - WelcomeStep.tsx: wide hero, staggered feature cards, progress dots, skip always accessible
+  - UploadStep.tsx: drag-and-drop zone, real ingestion polling, 3-step progress indicator
+  - AskStep.tsx: suggested questions, answer reveal, source chips, go to dashboard CTA
+  - DocumentCard.tsx: status dot + human label, hover:shadow, shimmer polling bar, grouped actions
+  - DocumentManager.tsx: card grid, multi-file queue, live polling for pending docs
+  - LoginForm.tsx: two-column (hero + form), shake animation on error, show/hide password, mail/lock icons
+  - PageLoader.tsx: per-route skeleton screens (Dashboard/Documents/Chat/Generic)
+  - InlineError.tsx: icon + title + message + retry, error/warning variants
+  - /api/onboarding/complete: POST route marks onboarding done in DB
+  - schema.ts: onboardingCompleted timestamp column on users
+  - DocumentSummary: added chunkCount to Pick
+  - All tests passing (3 pre-existing infra failures unchanged), production build clean
+- Next: Day 16 — Chat UI + Agent UI Polish
 
 ## System Capabilities (End of Phase 4)
 
@@ -205,6 +227,64 @@ ai-backend-project/
 │ └── repositories/
 └── styles/
 \`\`\`
+
+## CRITICAL FRONTEND INFRASTRUCTURE — DO NOT CHANGE THESE
+
+These fixes resolved a total CSS failure where no Tailwind classes were applied (layout broken,
+SVGs unsized, pages looked like raw HTML). They are permanent infrastructure decisions.
+
+### 1. Tailwind CSS version MUST stay on v3.x
+- Installed version: tailwindcss@3.4.x
+- The codebase uses v3 syntax: `@tailwind base/components/utilities` in globals.css and `tailwind.config.ts`
+- Tailwind v4 moved the PostCSS plugin to `@tailwindcss/postcss` and dropped `tailwind.config.ts`
+- **Never upgrade tailwindcss to v4** — it will silently break all CSS
+
+### 2. postcss.config.js MUST exist with this exact content
+```js
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+```
+- Turbopack (Next.js 16 dev mode) requires an explicit postcss.config.js
+- Webpack (production build) works without it — so `npm run build` passing does NOT mean CSS works in dev
+- The file uses ESM (`export default`) because `package.json` has `"type": "module"`
+- `autoprefixer` must be installed as a dependency
+
+### 3. next.config.ts MUST exist with turbopack root set
+```ts
+import type { NextConfig } from 'next'
+const nextConfig: NextConfig = {
+  turbopack: { root: process.cwd() },
+}
+export default nextConfig
+```
+- Without this, Turbopack picks up `/Users/anuragraut/package-lock.json` as workspace root
+- This causes `@swc/helpers` module resolution to break and makes CSS imports unreliable
+
+### 4. @keyframes must NOT be inside @layer in globals.css
+- All `@keyframes` blocks must be at the top level, outside any `@layer { }` block
+- Turbopack's CSS transformer cannot handle `@keyframes` inside `@layer utilities`
+
+### 5. All @apply directives must use valid Tailwind v3 class names
+- `box-sizing-border` is NOT a valid class — use raw CSS `box-sizing: border-box` instead
+- Any invalid class name in `@apply` silently breaks the entire stylesheet
+
+### 6. drizzle.config.ts must load .env.local before .env
+```ts
+dotenv.config({ path: '.env.local' })
+dotenv.config()
+```
+- The app database is `ai_product_dev` (in `.env.local`)
+- `.env` points to `ai_product` — drizzle-kit would push to the wrong DB without this order
+
+### 7. Database setup for new environments
+```bash
+psql postgresql://localhost:5432/postgres -c "CREATE DATABASE ai_product_dev;"
+DATABASE_URL=postgresql://localhost:5432/ai_product_dev npx drizzle-kit push
+```
 
 ## Absolute Rules — Never Violate These
 

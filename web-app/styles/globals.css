@@ -26,13 +26,13 @@
     --color-muted: #70798C;
     --color-dark: #171B1F;
 
-    /* Surface colors */
-    --background:              0 0% 98%;
-    --foreground:              240 10% 3.9%;
-    --card:                    0 0% 100%;
-    --card-foreground:         240 10% 3.9%;
-    --popover:                 0 0% 100%;
-    --popover-foreground:      240 10% 3.9%;
+    /* Surface colors — dark base matching ember-black (#171B1F) */
+    --background:              210 10% 11%;
+    --foreground:              33 25% 92%;
+    --card:                    215 12% 14%;
+    --card-foreground:         33 25% 92%;
+    --popover:                 215 12% 14%;
+    --popover-foreground:      33 25% 92%;
 
     /* Interactive colors */
     --primary:                 240 5.9% 10%;
