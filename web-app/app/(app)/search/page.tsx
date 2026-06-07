@@ -114,7 +114,7 @@ export default function SearchPage() {
                 placeholder="Search across all your documents..."
                 className={cn(
                   'w-full pl-9 pr-4 py-2.5 rounded-lg border border-input bg-background text-sm',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+                  'focus:outline-none focus:ring-2 focus:ring-ember focus:border-ember',
                   'transition-all duration-150'
                 )}
               />
@@ -124,7 +124,7 @@ export default function SearchPage() {
               onChange={e => setStrategy(e.target.value as typeof strategy)}
               className={cn(
                 'px-3 py-2 rounded-lg border border-input bg-background text-sm',
-                'focus:outline-none focus:ring-2 focus:ring-blue-500 text-muted-foreground'
+                'focus:outline-none focus:ring-2 focus:ring-ember text-muted-foreground'
               )}
             >
               <option value="semantic">Semantic</option>
@@ -136,7 +136,7 @@ export default function SearchPage() {
               onChange={e => setTopK(Number(e.target.value))}
               className={cn(
                 'px-3 py-2 rounded-lg border border-input bg-background text-sm',
-                'focus:outline-none focus:ring-2 focus:ring-blue-500 text-muted-foreground'
+                'focus:outline-none focus:ring-2 focus:ring-ember text-muted-foreground'
               )}
             >
               <option value={5}>Top 5</option>
@@ -215,7 +215,7 @@ export default function SearchPage() {
                   <div>
                     <p className="text-sm font-medium">
                       {results.length} results for{' '}
-                      <span className="text-blue-600">"{state.data.query}"</span>
+                      <span className="text-ember">"{state.data.query}"</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Strategy: {state.data.strategy} · Sorted by relevance
@@ -235,7 +235,7 @@ export default function SearchPage() {
                           'flex-1 rounded-sm transition-all cursor-pointer',
                           (r.score ?? 0) >= 0.85 ? 'bg-green-500' :
                           (r.score ?? 0) >= 0.7 ? 'bg-yellow-500' : 'bg-muted-foreground/40',
-                          selectedResult === r && 'ring-1 ring-blue-500'
+                          selectedResult === r && 'ring-1 ring-ember'
                         )}
                         style={{ height: `${(r.score ?? 0) * 100}%` }}
                         onClick={() => setSelectedResult(r)}

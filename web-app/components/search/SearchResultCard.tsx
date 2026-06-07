@@ -42,7 +42,7 @@ function highlightMatches(text: string, query: string): string {
   if (!words.length) return text
   const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   const regex = new RegExp(`(${escaped.join('|')})`, 'gi')
-  return text.replace(regex, '<mark class="bg-blue-100 text-foreground rounded px-0.5">$1</mark>')
+  return text.replace(regex, '<mark class="bg-ember/20 text-parchment rounded px-0.5">$1</mark>')
 }
 
 export function SearchResultCard({
@@ -78,7 +78,7 @@ export function SearchResultCard({
       className={cn(
         'rounded-xl border bg-card transition-all duration-150 cursor-pointer',
         'hover:shadow-md hover:border-border/80',
-        isSelected && 'border-blue-300 ring-1 ring-blue-200 shadow-md'
+        isSelected && 'border-ember/50 ring-1 ring-ember/30 shadow-md'
       )}
       onClick={onSelect}
     >
@@ -119,7 +119,7 @@ export function SearchResultCard({
         {hasMore && (
           <button
             onClick={e => { e.stopPropagation(); setExpanded(!expanded) }}
-            className="text-xs text-blue-600 hover:underline mt-1"
+            className="text-xs text-ember hover:underline mt-1"
           >
             {expanded ? 'Show less' : `+${result.content.length - 300} more chars`}
           </button>

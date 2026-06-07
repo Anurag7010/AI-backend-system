@@ -5,11 +5,12 @@ import { ChatPageClient } from "./ChatPageClient";
 export const metadata: Metadata = { title: "Chat" };
 
 type ChatPageProps = {
-  searchParams: { documentId?: string };
+  searchParams: Promise<{ documentId?: string }>;
 };
 
 export default async function ChatPage({ searchParams }: ChatPageProps) {
-  const documentId = searchParams.documentId;
+  const params = await searchParams;
+  const documentId = params.documentId;
 
   // If a documentId was passed (from the document detail page),
   // fetch the document on the server to show context in the banner.

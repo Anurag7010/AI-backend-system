@@ -5,11 +5,11 @@ import { cn } from '@/lib/cn'
 import type { AgentStep } from '@/types'
 
 const TOOL_COLORS: Record<string, string> = {
-  search_documents: 'bg-brand/10 text-brand border-brand/20',
-  get_document_list: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
-  get_document_metadata: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-  calculate: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-  web_search: 'bg-green-500/10 text-green-600 border-green-500/20',
+  search_documents: 'bg-ember/10 text-ember border-ember/20',
+  get_document_list: 'bg-stone-mid/20 text-parchment/80 border-stone-mid/40',
+  get_document_metadata: 'bg-stone-mid/20 text-parchment/80 border-stone-mid/40',
+  calculate: 'bg-ember/10 text-ember border-ember/20',
+  web_search: 'bg-stone-mid/20 text-parchment/80 border-stone-mid/40',
 }
 
 interface AgentStepCardProps {
@@ -37,10 +37,10 @@ export function AgentStepCard({ step, isLast, isAnimating }: AgentStepCardProps)
         {/* Step indicator circle */}
         <div
           className={cn(
-            'shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold z-10 bg-background border-2',
+            'shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold z-10 bg-forge-dark border-2',
             step.isFinal
-              ? 'border-green-500 text-green-600'
-              : 'border-border text-muted-foreground',
+              ? 'border-ember text-ember'
+              : 'border-stone-mid/50 text-ash-gray',
           )}
         >
           {step.isFinal ? '✓' : step.stepNumber}
@@ -54,7 +54,7 @@ export function AgentStepCard({ step, isLast, isAnimating }: AgentStepCardProps)
           >
             <div className="flex items-center gap-2 flex-wrap">
               {step.isFinal ? (
-                <span className="text-sm font-semibold text-green-600">Final Answer</span>
+                <span className="text-sm font-semibold text-ember">Final Answer</span>
               ) : step.action ? (
                 <>
                   <span className="text-xs text-muted-foreground">Called</span>
@@ -120,8 +120,8 @@ export function AgentStepCard({ step, isLast, isAnimating }: AgentStepCardProps)
 
               {/* Final answer */}
               {step.finalAnswer && (
-                <div className="rounded-lg bg-green-500/5 border border-green-500/20 px-3 py-2">
-                  <p className="text-sm text-foreground leading-relaxed">{step.finalAnswer}</p>
+                <div className="rounded-lg bg-ember/5 border border-ember/20 px-3 py-2">
+                  <p className="text-sm text-parchment/90 leading-relaxed">{step.finalAnswer}</p>
                 </div>
               )}
             </div>

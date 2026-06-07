@@ -25,10 +25,23 @@ function IconClose() {
   )
 }
 
+function FlameLogo() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-6 shrink-0" style={{ color: '#D4572A' }}>
+      <path
+        d="M12 2c0 0-4.5 4.5-4.5 9 0 3 1.5 4.5 1.5 4.5s-.5-2.2 1.2-3.8c.5 2.2 2 3.8 2 6 1-1 1.5-2.5 1.5-4.2 1 1.5 1 3.5 1 3.5s2.3-2.3 2.3-4.5c0-3-2-5.5-2-5.5s.5 3.5-1.5 4.5C13.5 8 12 2 12 2z"
+        fill="currentColor"
+        opacity="0.95"
+      />
+      <circle cx="12" cy="20" r="1.5" fill="currentColor" opacity="0.5" />
+    </svg>
+  )
+}
+
 const navItems = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/chat',      label: 'Neuro AI'  },
   { href: '/documents', label: 'Documents' },
-  { href: '/chat',      label: 'Chat'      },
   { href: '/agent',     label: 'Agent'     },
   { href: '/search',    label: 'Search'    },
   { href: '/settings',  label: 'Settings'  },
@@ -36,11 +49,9 @@ const navItems = [
 
 function UserAvatar({ email }: { email: string }) {
   const initials = email.split('@')[0].slice(0, 2).toUpperCase()
-  const hue = email.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360
   return (
     <div
-      className="size-7 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
-      style={{ background: `hsl(${hue} 60% 45%)` }}
+      className="size-7 rounded-full flex items-center justify-center text-xs font-semibold text-ember bg-ember/20 shrink-0"
       aria-hidden="true"
     >
       {initials}
@@ -52,10 +63,8 @@ export function MobileSidebar({ email }: { email: string }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
-  // Close drawer on route change
   useEffect(() => { setOpen(false) }, [pathname])
 
-  // Prevent body scroll when drawer open
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
@@ -64,22 +73,19 @@ export function MobileSidebar({ email }: { email: string }) {
   return (
     <>
       {/* Top bar — visible on mobile */}
-      <div className="fixed top-0 left-0 right-0 z-30 flex h-14 items-center justify-between border-b border-border bg-card px-4 lg:hidden">
+      <div className="fixed top-0 left-0 right-0 z-30 flex h-14 items-center justify-between border-b border-stone-mid/30 bg-forge-dark px-4 lg:hidden">
         <div className="flex items-center gap-2">
-          <svg viewBox="0 0 24 24" fill="none" className="size-6">
-            <rect width="24" height="24" rx="6" fill="hsl(217 91% 60%)" />
-            <rect x="5" y="5.5" width="8.5" height="12" rx="1.5" fill="white" opacity="0.9" />
-            <rect x="11" y="8.5" width="7" height="2.5" rx="1.25" fill="white" opacity="0.7" />
-            <circle cx="17" cy="16" r="3.5" fill="hsl(217 91% 45%)" />
-            <path d="M15.8 16l1 1 1.5-1.5" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="text-sm font-semibold tracking-tight">PrometheonAI</span>
+          <FlameLogo />
+          <div className="flex items-baseline gap-1">
+            <span className="font-cormorant text-base font-light tracking-tight text-parchment">Prometheon</span>
+            <sup className="text-ember text-[10px] font-sans">AI</sup>
+          </div>
         </div>
 
         <button
           onClick={() => setOpen(true)}
           aria-label="Open navigation menu"
-          className="flex items-center justify-center size-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="flex items-center justify-center size-9 rounded-md text-ash-gray hover:text-parchment hover:bg-parchment/5 transition-colors"
         >
           <IconMenu />
         </button>
@@ -88,7 +94,7 @@ export function MobileSidebar({ email }: { email: string }) {
       {/* Backdrop */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-ember-black/60 backdrop-blur-sm lg:hidden"
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
@@ -97,7 +103,7 @@ export function MobileSidebar({ email }: { email: string }) {
       {/* Drawer */}
       <div
         className={cn(
-          'fixed top-0 left-0 z-50 h-full w-64 bg-card border-r border-border',
+          'fixed top-0 left-0 z-50 h-full w-64 bg-forge-dark border-r border-stone-mid/30',
           'flex flex-col transition-transform duration-300 ease-out',
           'lg:hidden',
           open ? 'translate-x-0' : '-translate-x-full',
@@ -107,26 +113,35 @@ export function MobileSidebar({ email }: { email: string }) {
         aria-label="Navigation menu"
       >
         {/* Header */}
-        <div className="flex h-14 items-center justify-between border-b border-border px-4">
+        <div className="flex h-14 items-center justify-between border-b border-stone-mid/30 px-4">
           <div className="flex items-center gap-2">
-            <svg viewBox="0 0 24 24" fill="none" className="size-6 shrink-0">
-              <rect width="24" height="24" rx="6" fill="hsl(217 91% 60%)" />
-              <path d="M12 4c0 0-3.5 3.5-3.5 7 0 2 1.2 3.2 1.2 3.2s-.4-1.6.8-3c.4 1.6 1.6 2.8 1.6 4.5.8-.8 1.2-2 1.2-3.2.8 1.2.8 2.8.8 2.8s1.6-1.6 1.6-3.8c0-2.4-1.6-4.5-1.6-4.5s.4 2.4-1.2 3.2C12.4 7.5 12 4 12 4z" fill="white" opacity="0.95" />
-              <circle cx="12" cy="18.5" r="1.2" fill="white" opacity="0.6" />
-            </svg>
-            <span className="text-sm font-semibold tracking-tight">PrometheonAI</span>
+            <FlameLogo />
+            <div className="flex items-baseline gap-1">
+              <span className="font-cormorant text-base font-light tracking-tight text-parchment">Prometheon</span>
+              <sup className="text-ember text-[10px] font-sans">AI</sup>
+            </div>
           </div>
           <button
             onClick={() => setOpen(false)}
             aria-label="Close navigation menu"
-            className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="flex items-center justify-center size-8 rounded-md text-ash-gray hover:text-parchment hover:bg-parchment/5 transition-colors"
           >
             <IconClose />
           </button>
         </div>
 
+        {/* Back to landing */}
+        <div className="px-3 pt-2">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 liquid-glass rounded-full px-3 py-1 text-xs text-parchment/50 hover:text-parchment/90 transition-colors duration-150"
+          >
+            ← Prometheon
+          </Link>
+        </div>
+
         {/* Nav items */}
-        <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto p-2 space-y-0.5 mt-1">
           {navItems.map(({ href, label }) => {
             const isActive = href === '/'
               ? pathname === '/'
@@ -136,10 +151,10 @@ export function MobileSidebar({ email }: { email: string }) {
                 key={href}
                 href={href}
                 className={cn(
-                  'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-[150ms]',
                   isActive
-                    ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                    ? 'bg-ember/12 text-parchment'
+                    : 'text-ash-gray hover:bg-stone-mid/15 hover:text-parchment/80',
                 )}
                 aria-current={isActive ? 'page' : undefined}
               >
@@ -150,11 +165,11 @@ export function MobileSidebar({ email }: { email: string }) {
         </nav>
 
         {/* User section */}
-        <div className="border-t border-border p-3">
+        <div className="border-t border-stone-mid/30 p-3">
           <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
             <UserAvatar email={email} />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-foreground truncate">{email}</p>
+              <p className="text-xs font-medium text-parchment truncate">{email}</p>
             </div>
             <SignOutButton />
           </div>

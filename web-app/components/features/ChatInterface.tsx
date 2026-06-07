@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { useAsk } from '@/hooks/useAsk'
 import { ConversationSidebar } from '@/components/chat/ConversationSidebar'
 import { MessageBubble } from '@/components/ui/MessageBubble'
@@ -15,10 +17,40 @@ interface ChatInterfaceProps {
 }
 
 const SUGGESTED_QUESTIONS = [
-  'What is the main topic?',
-  'Summarize the key points',
-  'What are the conclusions?',
+  {
+    title: 'What is the main topic?',
+    subtitle: 'Get a high-level overview of your document',
+  },
+  {
+    title: 'Summarize the key points',
+    subtitle: 'Extract the most important ideas',
+  },
+  {
+    title: 'What are the conclusions?',
+    subtitle: 'Understand what the document argues',
+  },
 ]
+
+function FlameIcon() {
+  return (
+    <svg viewBox="0 0 32 32" fill="none" className="h-10 w-10" style={{ color: '#D4572A' }}>
+      <path
+        d="M16 3c0 0-5.5 5.5-5.5 11 0 3.5 2 5.5 2 5.5s-.7-2.8 1.4-4.8c.7 2.8 2.8 4.8 2.8 7.7 1.4-1.4 2.1-3.5 2.1-5.5 1.4 2.1 1.4 4.8 1.4 4.8s2.8-2.8 2.8-5.5C23.1 11 19 6.5 19 6.5s.7 4.2-2.1 5.5C15.5 8.5 16 3 16 3z"
+        fill="currentColor"
+        opacity="0.95"
+      />
+      <circle cx="16" cy="27" r="2" fill="currentColor" opacity="0.5" />
+    </svg>
+  )
+}
+
+function ArrowRight() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" style={{ color: '#D4572A' }}>
+      <path d="M3 8h10M9 4l4 4-4 4" />
+    </svg>
+  )
+}
 
 export function ChatInterface({ documentId, documentName }: ChatInterfaceProps) {
   const [query, setQuery] = useState('')
@@ -26,6 +58,7 @@ export function ChatInterface({ documentId, documentName }: ChatInterfaceProps) 
   const [showSidebar, setShowSidebar] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { state, messages, askStream, clearHistory, isStreaming } = useAsk()
+  const router = useRouter()
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -66,13 +99,20 @@ export function ChatInterface({ documentId, documentName }: ChatInterfaceProps) 
     setConversationId(id)
   }
 
+  async function handleSuggestionClick(text: string) {
+    if (isStreaming) return
+    setQuery(text)
+    await ensureConversation()
+    await askStream(text)
+  }
+
   const lastIndex = messages.length - 1
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden bg-ember-black">
       {/* Conversation sidebar */}
       {showSidebar && (
-        <div className="w-60 shrink-0 hidden md:block">
+        <div className="w-60 shrink-0 hidden md:flex flex-col bg-forge-dark border-r border-stone-mid/40">
           <ConversationSidebar
             currentConversationId={conversationId ?? undefined}
             onSelect={handleSelectConversation}
@@ -82,36 +122,28 @@ export function ChatInterface({ documentId, documentName }: ChatInterfaceProps) 
       )}
 
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 bg-ember-black">
         {/* Top bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowSidebar(!showSidebar)}
-              className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground hidden md:flex"
-              title="Toggle sidebar"
-            >
-              <svg viewBox="0 0 16 16" className="size-4 fill-none stroke-current" strokeWidth="1.5">
-                <rect x="2" y="2" width="12" height="12" rx="1.5" />
-                <path d="M6 2v12" />
+        <div className="flex items-center px-4 py-3 shrink-0">
+          <motion.button
+            onClick={() => setShowSidebar(!showSidebar)}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="liquid-glass rounded-lg p-2 text-ash-gray hover:text-parchment hidden md:flex transition-colors duration-150"
+            title="Toggle sidebar"
+          >
+            <svg viewBox="0 0 16 16" className="size-4 fill-none stroke-current" strokeWidth="1.5">
+              <rect x="2" y="2" width="12" height="12" rx="1.5" />
+              <path d="M6 2v12" />
+            </svg>
+          </motion.button>
+          {documentName && (
+            <div className="ml-3 flex items-center gap-1.5 text-xs bg-ember/10 text-ember px-2.5 py-1 rounded-full">
+              <svg viewBox="0 0 16 16" className="size-3 fill-current opacity-70">
+                <path d="M3 1h7l3 3v11H3V1z" />
               </svg>
-            </button>
-            {documentName && (
-              <div className="flex items-center gap-1.5 text-xs bg-brand/10 text-brand px-2.5 py-1 rounded-full">
-                <svg viewBox="0 0 16 16" className="size-3 fill-current opacity-70">
-                  <path d="M3 1h7l3 3v11H3V1z" />
-                </svg>
-                <span className="font-medium truncate max-w-[160px]">{documentName}</span>
-              </div>
-            )}
-          </div>
-          {messages.length > 0 && (
-            <button
-              onClick={handleNewConversation}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              New chat
-            </button>
+              <span className="font-medium truncate max-w-[160px]">{documentName}</span>
+            </div>
           )}
         </div>
 
@@ -119,33 +151,82 @@ export function ChatInterface({ documentId, documentName }: ChatInterfaceProps) 
         <div className="flex-1 overflow-y-auto">
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
-              <div className="text-center max-w-sm px-6">
-                <div className="w-12 h-12 rounded-xl bg-brand/10 flex items-center justify-center mx-auto mb-4">
-                  <svg viewBox="0 0 24 24" className="size-6 fill-current text-brand">
-                    <path d="M12 2l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-foreground mb-1">
-                  {documentName ? `Ask about "${documentName}"` : 'Ask about your documents'}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  {documentName
-                    ? 'Get instant answers from this document'
-                    : 'Upload a document and ask questions in natural language'}
-                </p>
-                <div className="space-y-2">
-                  {SUGGESTED_QUESTIONS.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      onClick={() => setQuery(suggestion)}
-                      className="w-full text-left text-sm px-3 py-2 rounded-lg border border-border
-                                 hover:bg-accent hover:border-brand/30 transition-all duration-150
-                                 text-muted-foreground hover:text-foreground"
-                    >
-                      {suggestion} →
-                    </button>
-                  ))}
-                </div>
+              <div className="max-w-2xl w-full px-6 text-center">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div className="relative flex justify-center mb-6">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-full blur-xl" style={{ background: 'rgba(212,87,42,0.10)' }} />
+                    </div>
+                    <FlameIcon />
+                  </div>
+
+                  <h2 className="font-cormorant text-3xl md:text-4xl font-light text-parchment tracking-[-0.02em] mb-2">
+                    What knowledge do you seek?
+                  </h2>
+                  <p className="text-ash-gray text-sm mb-6">
+                    Upload a document. Ask anything. The oracle is ready.
+                  </p>
+
+                  <motion.div
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                    transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    className="h-px w-24 mx-auto mb-8"
+                    style={{ background: 'rgba(212,87,42,0.4)' }}
+                  />
+
+                  <div className="space-y-3">
+                    {SUGGESTED_QUESTIONS.map((q, i) => (
+                      <motion.button
+                        key={q.title}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.1 * i, ease: [0.16, 1, 0.3, 1] }}
+                        onClick={() => handleSuggestionClick(q.title)}
+                        className="group w-full text-left bg-forge-dark border border-stone-mid/40 rounded-xl px-5 py-4 flex items-center justify-between transition-all duration-150 hover:border-stone-mid/70"
+                        style={{ background: '' }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLElement).style.background = 'rgba(76,85,96,0.15)'
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLElement).style.background = ''
+                        }}
+                      >
+                        <div>
+                          <p className="text-parchment/80 text-sm font-medium">{q.title}</p>
+                          <p className="text-ash-gray text-xs mt-0.5">{q.subtitle}</p>
+                        </div>
+                        <motion.span
+                          className="shrink-0 ml-3"
+                          whileHover={{ x: 2 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <ArrowRight />
+                        </motion.span>
+                      </motion.button>
+                    ))}
+                  </div>
+
+                  <p className="text-ash-gray/50 text-xs text-center mt-6">
+                    or upload a document to get started
+                  </p>
+                  <motion.button
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.5, delay: 0.5 }}
+                    onClick={() => router.push('/documents')}
+                    className="bg-forge-dark border border-stone-mid/40 rounded-full px-4 py-2 text-xs text-parchment/60 hover:border-ember/40 hover:text-parchment/80 flex items-center gap-2 mx-auto mt-3 transition-all duration-150"
+                  >
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 text-ember">
+                      <path d="M8 2v8M5 5l3-3 3 3M3 11v2a1 1 0 001 1h8a1 1 0 001-1v-2" />
+                    </svg>
+                    Upload a document
+                  </motion.button>
+                </motion.div>
               </div>
             </div>
           ) : (
@@ -189,8 +270,8 @@ export function ChatInterface({ documentId, documentName }: ChatInterfaceProps) 
               {state.status === 'error' && !isStreaming && (
                 <div
                   className={cn(
-                    'flex items-center gap-2 text-sm text-destructive',
-                    'bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3',
+                    'flex items-center gap-2 text-sm text-red-400',
+                    'bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3',
                   )}
                 >
                   <span className="shrink-0">⚠</span>
@@ -213,7 +294,7 @@ export function ChatInterface({ documentId, documentName }: ChatInterfaceProps) 
         </div>
 
         {/* Input area */}
-        <div className="shrink-0 px-4 py-4 border-t border-border bg-background/80 backdrop-blur-sm">
+        <div className="shrink-0 px-4 py-4 border-t border-stone-mid/30 bg-forge-dark/60 backdrop-blur-sm">
           <div className="max-w-3xl mx-auto">
             <ChatInput
               value={query}
@@ -221,8 +302,9 @@ export function ChatInterface({ documentId, documentName }: ChatInterfaceProps) 
               onSubmit={handleSubmit}
               onCancel={clearHistory}
               isStreaming={isStreaming}
+              placeholder="Ask the oracle anything about your documents..."
             />
-            <p className="text-xs text-muted-foreground text-center mt-2">
+            <p className="text-ash-gray/40 text-xs text-center mt-2">
               Answers generated from your documents · Verify important information
             </p>
           </div>

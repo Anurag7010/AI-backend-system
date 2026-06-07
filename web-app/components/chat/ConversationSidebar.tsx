@@ -51,13 +51,13 @@ export function ConversationSidebar({
   const groups = groupByDate(conversations)
 
   return (
-    <div className={cn('flex flex-col h-full border-r border-border bg-card/50', className)}>
-      <div className="p-3 border-b border-border">
+    <div className={cn('flex flex-col h-full bg-forge-dark', className)}>
+      <div className="p-3 border-b border-stone-mid/30">
         <button
           onClick={onNew}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
-                     bg-primary text-primary-foreground hover:bg-primary/90
-                     transition-colors active:scale-[0.98]"
+                     border border-stone-mid/40 text-parchment/80 hover:bg-ember/10 hover:text-parchment hover:border-ember/40
+                     transition-all duration-150 active:scale-[0.98]"
         >
           <svg viewBox="0 0 16 16" className="size-4 fill-current">
             <path d="M8 3v10M3 8h10" stroke="currentColor" fill="none" strokeWidth="1.5" strokeLinecap="round" />
@@ -85,11 +85,11 @@ export function ConversationSidebar({
                     key={convo.id}
                     onClick={() => onSelect(convo.id)}
                     className={cn(
-                      'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
-                      'hover:bg-accent flex items-start gap-2',
+                      'w-full text-left px-3 py-2 rounded-lg text-sm transition-all duration-150',
+                      'flex items-start gap-2',
                       currentConversationId === convo.id
-                        ? 'bg-accent text-foreground font-medium'
-                        : 'text-muted-foreground hover:text-foreground',
+                        ? 'bg-ember/12 text-parchment font-medium'
+                        : 'text-ash-gray hover:bg-stone-mid/15 hover:text-parchment',
                     )}
                   >
                     <svg viewBox="0 0 16 16" className="size-3.5 mt-0.5 shrink-0 opacity-60 fill-none stroke-current" strokeWidth="1.2">

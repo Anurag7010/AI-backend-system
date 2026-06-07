@@ -37,7 +37,7 @@ export default function SettingsPage() {
               'px-4 py-2 text-sm font-medium transition-colors',
               'border-b-2 -mb-px',
               activeTab === tab.id
-                ? 'border-blue-500 text-foreground'
+                ? 'border-ember text-parchment'
                 : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             )}
           >

@@ -50,10 +50,10 @@ export function MessageBubble({
         className={cn(
           'shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold mt-0.5',
           isUser
-            ? 'bg-brand text-brand-foreground'
+            ? 'bg-ember/20 text-ember'
             : isWarning
               ? 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20'
-              : 'bg-muted border border-border text-muted-foreground',
+              : 'bg-forge-dark border border-stone-mid/40 text-ash-gray',
         )}
       >
         {isUser ? (
@@ -72,10 +72,10 @@ export function MessageBubble({
           className={cn(
             'rounded-2xl px-4 py-3 text-sm',
             isUser
-              ? 'bg-primary text-primary-foreground rounded-tr-sm'
+              ? 'bg-ember text-parchment rounded-tr-sm'
               : isWarning
-                ? 'bg-yellow-50 border border-yellow-200 text-yellow-900 rounded-tl-sm'
-                : 'bg-card border border-border rounded-tl-sm',
+                ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-200 rounded-tl-sm'
+                : 'bg-forge-dark border border-stone-mid/30 text-parchment/90 rounded-tl-sm',
           )}
         >
           {isUser ? (
@@ -84,15 +84,15 @@ export function MessageBubble({
             <>
               {isStreaming && !message.content ? (
                 <div className="flex gap-1 py-1">
-                  <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" />
+                  <span className="w-1.5 h-1.5 bg-ash-gray rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 bg-ash-gray rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 bg-ash-gray rounded-full animate-bounce" />
                 </div>
               ) : (
                 <MarkdownMessage content={message.content} />
               )}
               {isStreaming && message.content && (
-                <span className="inline-block w-0.5 h-4 bg-brand ml-0.5 animate-pulse align-middle" />
+                <span className="inline-block w-0.5 h-4 bg-ember ml-0.5 animate-pulse align-middle" />
               )}
             </>
           )}
@@ -106,8 +106,8 @@ export function MessageBubble({
                 className={cn(
                   'text-xs px-1.5 py-0.5 rounded font-mono',
                   routedTo === 'agent'
-                    ? 'bg-brand/10 text-brand'
-                    : 'bg-muted text-muted-foreground',
+                    ? 'bg-ember/10 text-ember'
+                    : 'bg-stone-mid/20 text-ash-gray',
                 )}
               >
                 {routedTo === 'agent' ? '⚡ agent' : '🔍 rag'}
@@ -145,7 +145,7 @@ export function MessageBubble({
             {onCopy && (
               <button
                 onClick={onCopy}
-                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-xs"
+                className="p-1 rounded text-ash-gray hover:text-parchment hover:bg-stone-mid/15 transition-colors text-xs"
                 title="Copy response"
               >
                 Copy
@@ -154,7 +154,7 @@ export function MessageBubble({
             {onRegenerate && (
               <button
                 onClick={onRegenerate}
-                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-xs"
+                className="p-1 rounded text-ash-gray hover:text-parchment hover:bg-stone-mid/15 transition-colors text-xs"
                 title="Regenerate response"
               >
                 Retry

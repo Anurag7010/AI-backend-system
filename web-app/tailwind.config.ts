@@ -24,6 +24,14 @@ const config: Config = {
     // We almost always want extend unless we are intentionally overriding Tailwind defaults.
     extend: {
       colors: {
+        // Ember Dusk palette — primary design system
+        'ember-black': '#171B1F',
+        'forge-dark':  '#232830',
+        'stone-mid':   '#4C5560',
+        'ash-gray':    '#7A7068',
+        'ember':       '#D4572A',
+        'parchment':   '#EDE8E0',
+
         // Neutral palette — backgrounds, borders, text.
         // We define our own instead of using Tailwind's gray to maintain full control.
         neutral: {
@@ -120,10 +128,11 @@ const config: Config = {
       },
 
       fontFamily: {
-        // var(--font-inter) is set by next/font/google in layout.tsx.
-        // Fallbacks ensure text renders even before the font loads.
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        // var(--font-almarai) is set by next/font/google in layout.tsx.
+        sans: ['var(--font-almarai)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'Menlo', 'Monaco', 'monospace'],
+        // Cormorant Garamond — display/headings
+        cormorant: ['var(--font-cormorant)', 'Georgia', 'serif'],
       },
 
       fontSize: {

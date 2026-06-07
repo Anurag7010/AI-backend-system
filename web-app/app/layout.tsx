@@ -1,17 +1,23 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Almarai, Cormorant_Garamond } from "next/font/google";
 import Providers from "@/components/providers/Providers";
 import { AccessibilityWrapper } from "@/components/ui/AccessibilityWrapper";
 import "../styles/globals.css";
 import "@/lib/config";
 
-const inter = Inter({
+const almarai = Almarai({
   subsets: ["latin"],
-  // variable: creates a CSS custom property instead of applying the font directly.
-  // This lets us use var(--font-inter) in tailwind.config.ts fontFamily.sans.
-  // Without variable: the font is applied directly to elements, not accessible as a CSS var.
-  variable: "--font-inter",
-  display: "swap", // show fallback font immediately, swap when Inter loads
+  weight: ["300", "400", "700", "800"],
+  variable: "--font-almarai",
+  display: "swap",
+});
+
+const cormorant = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  variable: "--font-cormorant",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -46,7 +52,7 @@ export default function RootLayout({
     // It only suppresses warnings one level deep — does not affect child components.
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} font-sans min-h-screen bg-background text-foreground antialiased`}
+        className={`${almarai.variable} ${cormorant.variable} font-sans min-h-screen bg-background text-foreground antialiased`}
       >
         <Providers>
           <AccessibilityWrapper>

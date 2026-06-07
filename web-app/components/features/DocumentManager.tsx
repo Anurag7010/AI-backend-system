@@ -28,7 +28,7 @@ function EmptyDocuments({ onUpload }: { onUpload: () => void }) {
       </p>
       <button
         onClick={onUpload}
-        className="mt-4 flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 transition-colors"
+        className="mt-4 flex items-center gap-1.5 rounded-full bg-ember px-4 py-2 text-sm font-medium text-parchment hover:shadow-[0_0_16px_rgba(212,87,42,0.3)] transition-all duration-200"
       >
         <svg className="size-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
           <path d="M8 2v8M4 6l4-4 4 4" />

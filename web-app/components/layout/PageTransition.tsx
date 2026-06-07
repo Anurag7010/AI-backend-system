@@ -21,7 +21,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   }, [pathname, displayedPathname])
 
   return (
-    <div className={cn('transition-opacity duration-100', isVisible ? 'opacity-100' : 'opacity-0')}>
+    <div className={cn('h-full transition-opacity duration-100', isVisible ? 'opacity-100' : 'opacity-0')}>
       {children}
     </div>
   )

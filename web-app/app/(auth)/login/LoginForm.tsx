@@ -3,10 +3,15 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
 import { setAccessToken } from '@/hooks/useAuth'
+import { MagneticButton, WordsPullUp } from '@/components/ui/motion'
+import { EASE_CINEMATIC, DURATION } from '@/lib/motion'
 import { cn } from '@/lib/cn'
+
+const AUTH_VIDEO_URL =
+  'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260506_081238_406ed0e3-5d83-436e-a512-0bbff7ec5b95.mp4'
 
 interface FormState {
   email: string
@@ -51,6 +56,19 @@ function EyeIcon({ off }: { off?: boolean }) {
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
       <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z" />
       <circle cx="8" cy="8" r="2" />
+    </svg>
+  )
+}
+
+function FlameMark() {
+  return (
+    <svg viewBox="0 0 32 32" fill="none" className="w-6 h-6">
+      <path
+        d="M16 3c0 0-5.5 5.5-5.5 11 0 3.5 2 5.5 2 5.5s-.7-2.8 1.4-4.8c.7 2.8 2.8 4.8 2.8 7.7 1.4-1.4 2.1-3.5 2.1-5.5 1.4 2.1 1.4 4.8 1.4 4.8s2.8-2.8 2.8-5.5C23.1 11 19 6.5 19 6.5s.7 4.2-2.1 5.5C15.5 8.5 16 3 16 3z"
+        fill="#F5F1ED"
+        opacity="0.95"
+      />
+      <circle cx="16" cy="27" r="2" fill="#F5F1ED" opacity="0.5" />
     </svg>
   )
 }
@@ -117,162 +135,180 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left — hero column (desktop only) */}
-      <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 bg-foreground flex-col relative overflow-hidden">
-        <div className="absolute inset-0 bg-grid opacity-10" />
-        <div className="relative flex flex-col justify-between h-full p-10">
-          {/* Logo */}
-          <div className="flex items-center gap-2.5">
-            <svg viewBox="0 0 28 28" fill="none" className="size-7 shrink-0">
-              <rect width="28" height="28" rx="7" fill="hsl(217 91% 60%)" />
-              <path d="M14 5c0 0-4 4-4 8 0 2.5 1.5 4 1.5 4s-.5-2 1-3.5c.5 2 2 3.5 2 5.5 1-1 1.5-2.5 1.5-4 1 1.5 1 3.5 1 3.5S19 17 19 14c0-3-2-5.5-2-5.5s.5 3-1.5 4C14.5 10 14 5 14 5z" fill="white" opacity="0.95" />
-              <circle cx="14" cy="21" r="1.5" fill="white" opacity="0.6" />
-            </svg>
-            <span className="text-sm font-semibold text-white tracking-tight">PrometheonAI</span>
+    <div className="flex min-h-screen bg-ember-black">
+      {/* Left — video panel (desktop only) */}
+      <div className="hidden lg:flex lg:w-[52%] relative overflow-hidden">
+        <video
+          src={AUTH_VIDEO_URL}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        {/* Bottom content */}
+        <div className="absolute bottom-0 left-0 right-0 p-10">
+          <div className="liquid-glass rounded-2xl p-6 max-w-md">
+            <p className="font-serif italic text-[#F5F1ED]/80 text-lg leading-relaxed">
+              <WordsPullUp
+                text="In the beginning, fire belonged to the gods. Prometheus stole it and gave it to humanity. Now, knowledge is power — and PrometheonAI gives it to all."
+              />
+            </p>
           </div>
-
-          {/* Feature highlights — not hero metrics, actual product value */}
-          <div className="space-y-6">
-            {[
-              {
-                icon: (
-                  <path d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" strokeLinecap="round" strokeLinejoin="round" />
-                ),
-                title: 'Instant document retrieval',
-                body: 'Ask anything. Get precise answers from your uploaded PDFs, with source citations.',
-              },
-              {
-                icon: (
-                  <>
-                    <path d="M13 10a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path d="M9 13s-5 2-5 5h14c0-3-5-5-5-5" strokeLinecap="round" />
-                    <path d="M16 7l2 2 3-3" strokeLinecap="round" strokeLinejoin="round" />
-                  </>
-                ),
-                title: 'Memory across sessions',
-                body: 'PrometheonAI remembers your preferences and past conversations so you never repeat yourself.',
-              },
-              {
-                icon: (
-                  <>
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M12 1v2M12 19v2M4.22 4.22l1.42 1.42M16.36 16.36l1.42 1.42M1 12h2M19 12h2M4.22 19.78l1.42-1.42M16.36 7.64l1.42-1.42" strokeLinecap="round" />
-                  </>
-                ),
-                title: 'Agent-powered reasoning',
-                body: 'Complex multi-step queries are routed to the ReAct agent with web search and calculation tools.',
-              },
-            ].map(({ icon, title, body }, i) => (
-              <div key={i} className="flex gap-3">
-                <div className="shrink-0 mt-0.5 flex size-8 items-center justify-center rounded-lg bg-white/10">
-                  <svg className="size-4 text-white" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                    {icon}
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">{title}</p>
-                  <p className="mt-0.5 text-xs text-white/60 leading-relaxed">{body}</p>
-                </div>
-              </div>
-            ))}
+          <div className="flex items-center gap-2 mt-6">
+            <FlameMark />
+            <span className="text-[#F5F1ED] font-bold text-sm">PrometheonAI</span>
           </div>
-
-          <p className="text-xs text-white/40">PrometheonAI — Built with Next.js, Python, ChromaDB, and OpenAI.</p>
         </div>
       </div>
 
-      {/* Right — form column */}
+      {/* Right — form panel */}
       <div className="flex flex-1 items-center justify-center px-6 py-12">
-        <div className={cn('w-full max-w-sm', shake && 'animate-[shake_0.4s_ease-in-out]')}>
+        <motion.div
+          animate={shake ? { x: [0, -8, 8, -4, 4, 0] } : { x: 0 }}
+          transition={{ duration: 0.4, ease: 'easeInOut' }}
+          className="w-full max-w-sm"
+        >
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <svg viewBox="0 0 24 24" fill="none" className="size-6 shrink-0">
-              <rect width="24" height="24" rx="6" fill="hsl(217 91% 60%)" />
-              <path d="M12 4c0 0-3.5 3.5-3.5 7 0 2 1.2 3.2 1.2 3.2s-.4-1.6.8-3c.4 1.6 1.6 2.8 1.6 4.5.8-.8 1.2-2 1.2-3.2.8 1.2.8 2.8.8 2.8s1.6-1.6 1.6-3.8c0-2.4-1.6-4.5-1.6-4.5s.4 2.4-1.2 3.2C12.4 7.5 12 4 12 4z" fill="white" opacity="0.95" />
-              <circle cx="12" cy="18.5" r="1.2" fill="white" opacity="0.6" />
-            </svg>
-            <span className="text-sm font-semibold tracking-tight">PrometheonAI</span>
+            <FlameMark />
+            <span className="text-[#F5F1ED] font-bold text-sm">PrometheonAI</span>
           </div>
 
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Sign in to continue to PrometheonAI.{' '}
-            <Link href="/register" className="font-medium text-brand-500 hover:text-brand-600 transition-colors">
+          <h1 className="font-cormorant text-3xl font-light tracking-tight text-parchment">Enter the Forge</h1>
+          <p className="mt-1.5 text-sm text-ash-gray">
+            The gods await your return.{' '}
+            <Link href="/register" className="font-medium text-parchment/80 hover:text-parchment transition-colors">
               Create account
             </Link>
           </p>
 
-          {/* Server error banner */}
-          {serverError && (
-            <div
-              role="alert"
-              className="mt-5 flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-3"
-            >
-              <svg className="size-4 shrink-0 text-destructive mt-0.5" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 0a8 8 0 100 16A8 8 0 008 0zm-.75 4.5h1.5v5h-1.5v-5zm.75 7.5a.75.75 0 110-1.5.75.75 0 010 1.5z" />
-              </svg>
-              <p className="text-sm text-destructive">{serverError}</p>
-            </div>
-          )}
+          {/* Server error */}
+          <AnimatePresence>
+            {serverError && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                role="alert"
+                className="mt-5 flex items-start gap-2.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3.5 py-3"
+              >
+                <svg className="size-4 shrink-0 text-red-400 mt-0.5" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 0a8 8 0 100 16A8 8 0 008 0zm-.75 4.5h1.5v5h-1.5v-5zm.75 7.5a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+                </svg>
+                <p className="text-sm text-red-400">{serverError}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
-            <Input
-              label="Email"
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange('email')}
-              error={submitted ? errors.email : undefined}
-              placeholder="you@example.com"
-              autoComplete="email"
-              fullWidth
-              leftElement={<MailIcon />}
-            />
+            <div>
+              <label className="text-xs font-medium text-parchment/80 mb-1.5 block">Email</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ash-gray">
+                  <MailIcon />
+                </span>
+                <input
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange('email')}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  className={cn(
+                    'w-full bg-forge-dark border border-stone-mid/40 rounded-xl pl-10 pr-4 py-2.5 text-sm text-parchment placeholder-ash-gray',
+                    'transition-all duration-200',
+                    'focus:outline-none',
+                    errors.email && submitted && 'border-red-500/50'
+                  )}
+                  style={{ boxShadow: 'none' }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(212,87,42,0.6)'
+                    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(212,87,42,0.2), 0 0 20px rgba(212,87,42,0.08)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = ''
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
+                />
+              </div>
+              {submitted && errors.email && (
+                <p className="text-xs text-red-400 mt-1">{errors.email}</p>
+              )}
+            </div>
 
-            <Input
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              value={form.password}
-              onChange={handleChange('password')}
-              error={submitted ? errors.password : undefined}
-              placeholder="Minimum 8 characters"
-              autoComplete="current-password"
-              fullWidth
-              leftElement={<LockIcon />}
-              rightElement={
+            <div>
+              <label className="text-xs font-medium text-parchment/80 mb-1.5 block">Password</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ash-gray">
+                  <LockIcon />
+                </span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange('password')}
+                  placeholder="Minimum 8 characters"
+                  autoComplete="current-password"
+                  className={cn(
+                    'w-full bg-forge-dark border border-stone-mid/40 rounded-xl pl-10 pr-10 py-2.5 text-sm text-parchment placeholder-ash-gray',
+                    'transition-all duration-200',
+                    'focus:outline-none',
+                    errors.password && submitted && 'border-red-500/50'
+                  )}
+                  style={{ boxShadow: 'none' }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(212,87,42,0.6)'
+                    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(212,87,42,0.2), 0 0 20px rgba(212,87,42,0.08)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = ''
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
+                />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="pointer-events-auto text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ash-gray hover:text-parchment transition-colors"
                 >
                   <EyeIcon off={showPassword} />
                 </button>
-              }
-            />
+              </div>
+              {submitted && errors.password && (
+                <p className="text-xs text-red-400 mt-1">{errors.password}</p>
+              )}
+            </div>
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              loading={loading}
-              className="w-full"
-            >
-              Sign in
-            </Button>
+            <MagneticButton className="w-full">
+              <motion.button
+                type="submit"
+                disabled={loading}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                className={cn(
+                  'w-full bg-ember text-parchment rounded-full py-3 text-sm font-medium',
+                  'transition-all duration-200',
+                  'hover:shadow-[0_0_30px_rgba(212,87,42,0.35)]',
+                  'disabled:opacity-60 disabled:cursor-not-allowed'
+                )}
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Entering...
+                  </span>
+                ) : (
+                  'Enter the Forge'
+                )}
+              </motion.button>
+            </MagneticButton>
           </form>
-        </div>
+        </motion.div>
       </div>
-
-      <style jsx global>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          15%, 45%, 75% { transform: translateX(-4px); }
-          30%, 60%, 90% { transform: translateX(4px); }
-        }
-      `}</style>
     </div>
   )
 }

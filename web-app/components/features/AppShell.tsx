@@ -25,7 +25,7 @@ export function AppShell({ email, children }: AppShellProps) {
   }, [])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-ember-black">
       {/* Desktop sidebar — hidden on small screens */}
       <div className="hidden lg:flex h-full shrink-0">
         <Sidebar email={email} />

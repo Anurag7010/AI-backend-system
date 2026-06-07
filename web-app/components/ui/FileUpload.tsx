@@ -114,7 +114,7 @@ export function FileUpload({
                 e.stopPropagation();
                 inputRef.current?.click();
               }}
-              className="text-xs text-blue-600 underline"
+              className="text-xs text-ember underline"
             >
               Try again
             </button>

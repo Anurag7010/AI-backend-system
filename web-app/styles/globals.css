@@ -1,3 +1,6 @@
+/* Instrument Serif — accent italic font for mythological phrases */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&display=swap');
+
 /* Tailwind directives — base → components → utilities (specificity order) */
 @tailwind base;
 @tailwind components;
@@ -5,12 +8,24 @@
 
 /* ============================================================
    DESIGN SYSTEM — CSS CUSTOM PROPERTIES
-   All values are raw HSL numbers (no hsl() wrapper).
-   Tailwind wraps them: background: 'hsl(var(--background))'
-   This enables opacity modifiers: bg-background/50
+   PrometheonAI palette: dark mythological luxury
    ============================================================ */
 @layer base {
   :root {
+    /* ── Ember Dusk Palette ── */
+    --ember-black:  #171B1F;
+    --forge-dark:   #232830;
+    --stone-mid:    #4C5560;
+    --ash-gray:     #7A7068;
+    --ember-orange: #D4572A;
+    --parchment:    #EDE8E0;
+
+    --color-primary: #F5F1ED;
+    --color-primary-muted: #DAD2BC;
+    --color-secondary: #A99985;
+    --color-muted: #70798C;
+    --color-dark: #171B1F;
+
     /* Surface colors */
     --background:              0 0% 98%;
     --foreground:              240 10% 3.9%;
@@ -34,12 +49,12 @@
     /* Form + focus */
     --border:                  240 5.9% 90%;
     --input:                   240 5.9% 90%;
-    --ring:                    217 91% 60%;
+    --ring:                    16 67% 50%;
 
-    /* Brand accent — electric blue for AI interactions */
-    --brand:                   217 91% 60%;
+    /* Brand accent — ember orange */
+    --brand:                   16 67% 50%;
     --brand-foreground:        0 0% 100%;
-    --brand-muted:             217 91% 95%;
+    --brand-muted:             16 67% 95%;
 
     /* Semantic */
     --success:                 142 76% 36%;
@@ -91,15 +106,20 @@
 
     --border:                  240 3.7% 15%;
     --input:                   240 3.7% 15%;
-    --ring:                    217 91% 65%;
+    --ring:                    16 67% 50%;
 
-    --brand:                   217 91% 65%;
-    --brand-muted:             217 91% 10%;
+    --brand:                   16 67% 50%;
+    --brand-muted:             16 67% 10%;
     --success-muted:           142 76% 8%;
     --warning-muted:           38 92% 8%;
   }
 
-  /* Border + box-sizing reset */
+  *,
+  *::before,
+  *::after {
+    font-family: "Almarai", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+  }
+
   *, *::before, *::after {
     @apply border-border;
     box-sizing: border-box;
@@ -121,7 +141,6 @@
     @apply font-semibold tracking-tight;
   }
 
-  /* Refined scrollbar */
   ::-webkit-scrollbar        { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track  { background: transparent; }
   ::-webkit-scrollbar-thumb  {
@@ -132,14 +151,12 @@
     background: hsl(var(--muted-foreground) / 0.5);
   }
 
-  /* Focus ring — brand colored */
   :focus-visible {
     outline: 2px solid hsl(var(--brand));
     outline-offset: 2px;
     border-radius: 2px;
   }
 
-  /* Selection */
   ::selection {
     background: hsl(var(--brand) / 0.15);
     color: hsl(var(--foreground));
@@ -150,21 +167,15 @@
    COMPONENT LAYER — reusable patterns
    ============================================================ */
 @layer components {
-  /* Card base — used by the .card class referenced throughout */
   .card {
     @apply bg-card text-card-foreground rounded-lg border border-border;
     box-shadow: var(--shadow-sm);
   }
 
-  /* Prose for AI response content */
   .ai-response {
-    @apply prose prose-neutral dark:prose-invert max-w-none;
-    @apply prose-pre:bg-neutral-900 prose-pre:text-neutral-100 prose-pre:rounded-lg;
-    @apply prose-code:text-brand-600 dark:prose-code:text-brand-400;
-    @apply prose-code:before:content-none prose-code:after:content-none;
+    @apply prose prose-neutral max-w-none;
   }
 
-  /* Prose-ai — used in AI chat bubbles */
   .prose-ai {
     @apply text-sm leading-relaxed text-foreground;
   }
@@ -172,7 +183,7 @@
   .prose-ai h1 { @apply text-xl mt-6 mb-3; }
   .prose-ai h2 { @apply text-lg mt-5 mb-2; }
   .prose-ai h3 { @apply text-base mt-4 mb-2; }
-  .prose-ai p  { @apply mb-3 last:mb-0; }
+  .prose-ai p  { @apply mb-3; }
   .prose-ai ul { @apply pl-4 mb-3 space-y-1; }
   .prose-ai li { @apply list-disc; }
   .prose-ai code {
@@ -183,26 +194,22 @@
     @apply font-mono text-xs bg-muted p-4 rounded-lg overflow-x-auto mb-3;
   }
   .prose-ai strong { @apply font-semibold; }
-  .prose-ai a { @apply underline-offset-4 hover:underline; color: hsl(var(--brand)); }
+  .prose-ai a { @apply underline-offset-4; color: hsl(var(--brand)); }
 
-  /* Page container */
   .page-container {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
-  /* Section patterns */
   .section-header      { @apply mb-6; }
   .section-title       { @apply text-2xl font-semibold text-foreground; }
   .section-description { @apply text-sm text-muted-foreground mt-1; }
 
-  /* Glass effect — reserved for intentional overlay contexts only */
   .glass {
     backdrop-filter: blur(12px) saturate(1.5);
     background: hsl(var(--background) / 0.85);
     border: 1px solid hsl(var(--border) / 0.6);
   }
 
-  /* Subtle grid background */
   .bg-grid {
     background-image:
       linear-gradient(hsl(var(--border) / 0.4) 1px, transparent 1px),
@@ -210,18 +217,15 @@
     background-size: 32px 32px;
   }
 
-  /* Brand glow */
   .glow-brand {
     box-shadow: 0 0 40px hsl(var(--brand) / 0.15);
   }
 
-  /* Status dot */
   .status-dot         { @apply inline-block w-2 h-2 rounded-full; }
   .status-dot.active  { @apply bg-green-500 animate-pulse; }
   .status-dot.idle    { @apply bg-muted-foreground; }
   .status-dot.error   { @apply bg-destructive; }
 
-  /* Keyboard shortcut badge */
   .kbd {
     @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-mono
            bg-muted border border-border rounded
@@ -229,12 +233,10 @@
     box-shadow: var(--shadow-xs);
   }
 
-  /* Uppercase label */
   .label-uppercase {
     @apply text-xs font-semibold uppercase tracking-widest text-muted-foreground;
   }
 
-  /* Shimmer loading animation */
   .shimmer {
     background: linear-gradient(
       90deg,
@@ -245,6 +247,88 @@
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
+
+  /* PrometheonAI — Liquid Glass (parchment-tinted base) */
+  .liquid-glass {
+    background: rgba(237, 232, 224, 0.04);
+    background-blend-mode: luminosity;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: none;
+    box-shadow: inset 0 1px 1px rgba(237, 232, 224, 0.08);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .liquid-glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.4px;
+    background: linear-gradient(
+      180deg,
+      rgba(237, 232, 224, 0.35) 0%,
+      rgba(237, 232, 224, 0.12) 20%,
+      rgba(237, 232, 224, 0) 40%,
+      rgba(237, 232, 224, 0) 60%,
+      rgba(237, 232, 224, 0.12) 80%,
+      rgba(237, 232, 224, 0.35) 100%
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
+/* ============================================================
+   INPUT FOCUS — ember orange ring globally, no blue/default outlines
+   ============================================================ */
+textarea:focus,
+input:focus {
+  outline: none !important;
+  border-color: rgba(212, 87, 42, 0.6) !important;
+  box-shadow: 0 0 0 2px rgba(212, 87, 42, 0.2), 0 0 16px rgba(212, 87, 42, 0.06) !important;
+}
+
+/* Within focus-within wrappers the parent handles the ring — suppress on child */
+.focus-within-wrapper textarea:focus,
+.focus-within-wrapper input:focus {
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* KBD keys — dark palette override (app runs on ember-black, not browser default light) */
+.kbd {
+  background: rgba(76, 85, 96, 0.25) !important;
+  border-color: rgba(76, 85, 96, 0.5) !important;
+  color: rgba(122, 112, 104, 1) !important;
+}
+
+/* ============================================================
+   NOISE TEXTURE — PrometheonAI atmospheric effect
+   ============================================================ */
+.noise-overlay {
+  position: relative;
+}
+
+.noise-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: 240px 240px;
+}
+
+.bg-noise {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: 200px 200px;
 }
 
 /* ============================================================
@@ -287,6 +371,22 @@
   70%  { transform: scale(1);    box-shadow: 0 0 0 6px hsl(var(--brand) / 0); }
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 hsl(var(--brand) / 0); }
 }
+@keyframes marquee-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes marquee-right {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* ============================================================
    UTILITIES
@@ -299,6 +399,22 @@
   .animate-slide-right  { animation: slide-in-from-right var(--duration-slow) var(--ease-out) both; }
   .animate-slide-left   { animation: slide-in-from-left var(--duration-slow) var(--ease-out) both; }
   .animate-pulse-ring   { animation: pulse-ring 1.5s ease-out infinite; }
+  .animate-marquee-left  { animation: marquee-left 22s linear infinite; }
+  .animate-marquee-right { animation: marquee-right 26s linear infinite; }
+  .animate-ticker        { animation: ticker-scroll 30s linear infinite; }
+
+  /* Ember input glow on focus — global override */
+  .ember-focus:focus {
+    border-color: rgba(212, 87, 42, 0.6);
+    box-shadow: 0 0 0 2px rgba(212, 87, 42, 0.2), 0 0 20px rgba(212, 87, 42, 0.08);
+    outline: none;
+  }
+
+  /* Ticker edge-fade mask */
+  .ticker-mask {
+    mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  }
 
   .delay-75  { animation-delay: 75ms; }
   .delay-100 { animation-delay: 100ms; }

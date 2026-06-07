@@ -59,10 +59,21 @@ export function ChatInput({
   return (
     <div
       className={cn(
-        'relative border border-input rounded-xl bg-background transition-all duration-200',
-        'focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20',
+        'relative border border-stone-mid/40 rounded-2xl transition-all duration-200',
+        'focus-within:border-ember/60',
         disabled && 'opacity-60',
       )}
+      style={{ background: 'rgba(23,27,31,0.8)' }}
+      onFocusCapture={(e) => {
+        if (e.currentTarget !== e.target) {
+          e.currentTarget.style.boxShadow = '0 0 0 2px rgba(212,87,42,0.2)'
+        }
+      }}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          e.currentTarget.style.boxShadow = 'none'
+        }
+      }}
     >
       <textarea
         ref={textareaRef}
@@ -75,21 +86,22 @@ export function ChatInput({
         rows={1}
         className={cn(
           'w-full resize-none bg-transparent px-4 pt-3 pb-12',
-          'text-sm text-foreground placeholder:text-muted-foreground',
+          'text-sm text-parchment placeholder:text-ash-gray',
           'focus:outline-none',
           'min-h-[52px] max-h-[200px]',
         )}
+        style={{ borderColor: 'transparent', boxShadow: 'none' }}
       />
 
       <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 pb-2.5">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground hidden sm:flex items-center gap-1">
+          <span className="text-xs text-ash-gray/50 hidden sm:flex items-center gap-1">
             <kbd className="kbd">↵</kbd> send
             <span className="mx-1">·</span>
             <kbd className="kbd">⇧↵</kbd> newline
           </span>
           {isStreaming && (
-            <span className="text-xs text-brand animate-pulse">Generating...</span>
+            <span className="text-xs text-ember animate-pulse">Generating...</span>
           )}
         </div>
 
@@ -98,7 +110,7 @@ export function ChatInput({
             <span
               className={cn(
                 'text-xs font-mono',
-                isAtLimit ? 'text-destructive' : 'text-muted-foreground',
+                isAtLimit ? 'text-red-400' : 'text-ash-gray',
               )}
             >
               {charCount}/{maxLength}
@@ -106,18 +118,25 @@ export function ChatInput({
           )}
 
           {isStreaming ? (
-            <Button size="sm" variant="outline" onClick={onCancel} className="h-7 text-xs">
+            <button
+              onClick={onCancel}
+              className="h-7 px-3 rounded-xl text-xs bg-stone-mid/30 text-ash-gray hover:text-parchment transition-colors"
+            >
               ■ Stop
-            </Button>
+            </button>
           ) : (
-            <Button
-              size="sm"
+            <button
               onClick={onSubmit}
               disabled={!value.trim() || disabled || isAtLimit}
-              className="h-7 px-3"
+              className={cn(
+                'h-7 px-4 rounded-xl text-sm font-medium transition-all duration-150',
+                value.trim() && !disabled && !isAtLimit
+                  ? 'bg-ember text-parchment hover:scale-[1.02] active:scale-[0.97]'
+                  : 'bg-stone-mid/30 text-ash-gray cursor-not-allowed',
+              )}
             >
               →
-            </Button>
+            </button>
           )}
         </div>
       </div>

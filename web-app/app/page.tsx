@@ -1,19 +1,9 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
+import LandingPage from "./(marketing)/LandingPage";
 
 export const metadata = {
-  title: "Home",
+  title: "PrometheonAI — Fire for the Many",
 };
 
-// This page exists only to redirect — no UI needed.
-// Server Component so redirect() works (redirect() cannot be used in Client Components
-// during render — only in event handlers via router.push())
 export default async function RootPage() {
-  const session = await getSession();
-
-  if (session) {
-    redirect("/dashboard");
-  }
-
-  redirect("/login");
+  return <LandingPage />;
 }

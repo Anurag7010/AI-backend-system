@@ -1,11 +1,57 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { useAgent } from '@/hooks'
 import { AgentStepCard } from '@/components/agent/AgentStepCard'
 import { ChatInput } from '@/components/chat/ChatInput'
-import { Badge, Spinner } from '@/components/ui'
+import { Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
+
+const TOOL_BADGES = [
+  {
+    label: 'Search docs',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="h-3 w-3" style={{ color: '#D4572A' }}>
+        <circle cx="6.5" cy="6.5" r="4.5" /><path d="M13 13l-3-3" />
+      </svg>
+    ),
+  },
+  {
+    label: 'List files',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="h-3 w-3" style={{ color: '#D4572A' }}>
+        <path d="M11 2H5a1 1 0 00-1 1v10a1 1 0 001 1h6a1 1 0 001-1V5L11 2z" />
+        <path d="M11 2v3h3" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Calculate',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="h-3 w-3" style={{ color: '#D4572A' }}>
+        <rect x="2" y="2" width="12" height="12" rx="1.5" />
+        <path d="M5 8h6M8 5v6" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Web search',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="h-3 w-3" style={{ color: '#D4572A' }}>
+        <circle cx="8" cy="8" r="6" /><path d="M8 2c-2 2-2 8 0 12M8 2c2 2 2 8 0 12M2 8h12" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Get metadata',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="h-3 w-3" style={{ color: '#D4572A' }}>
+        <circle cx="8" cy="8" r="6" /><path d="M8 7v4M8 5.5v.5" />
+      </svg>
+    ),
+  },
+]
 
 const SUGGESTED_QUERIES = [
   {
@@ -26,10 +72,29 @@ const SUGGESTED_QUERIES = [
   },
 ]
 
+function FlameIcon() {
+  return (
+    <svg viewBox="0 0 32 32" fill="none" className="h-8 w-8" style={{ color: '#D4572A' }}>
+      <path
+        d="M16 3c0 0-5.5 5.5-5.5 11 0 3.5 2 5.5 2 5.5s-.7-2.8 1.4-4.8c.7 2.8 2.8 4.8 2.8 7.7 1.4-1.4 2.1-3.5 2.1-5.5 1.4 2.1 1.4 4.8 1.4 4.8s2.8-2.8 2.8-5.5C23.1 11 19 6.5 19 6.5s.7 4.2-2.1 5.5C15.5 8.5 16 3 16 3z"
+        fill="currentColor"
+        opacity="0.95"
+      />
+      <circle cx="16" cy="27" r="2" fill="currentColor" opacity="0.5" />
+    </svg>
+  )
+}
+
 export default function AgentInterface() {
   const { state, steps, isRunning, run, reset } = useAgent()
   const [query, setQuery] = useState('')
   const stepsEndRef = useRef<HTMLDivElement>(null)
+
+  async function handleSuggestionClick(text: string) {
+    if (isRunning) return
+    setQuery(text)
+    await run(text)
+  }
 
   useEffect(() => {
     if (steps.length > 0) {
@@ -47,40 +112,35 @@ export default function AgentInterface() {
   const hasResult = state.status === 'success' || state.status === 'error'
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-ember-black">
       {/* Header */}
-      <div className="shrink-0 px-6 py-4 border-b border-border">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold text-foreground flex items-center gap-2">
-              <span className="w-5 h-5 rounded-md bg-brand/10 flex items-center justify-center">
-                <svg viewBox="0 0 16 16" className="size-3 fill-current text-brand">
-                  <path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5z" />
-                </svg>
-              </span>
-              Agent
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Multi-step reasoning with tool use
-            </p>
-          </div>
+      <div className="shrink-0 px-8 pt-8 pb-0">
+        <p className="text-ash-gray text-[10px] tracking-[0.2em] uppercase mb-2">PROMETHEUS PROTOCOL</p>
+        <h1 className="font-cormorant text-4xl font-light text-parchment mb-2">Agent Reasoning</h1>
+        <p className="text-ash-gray text-sm">Complex queries. Multi-step thinking. Full reasoning trace.</p>
 
-          <div className="flex items-center gap-2">
-            {isRunning && (
-              <div className="flex items-center gap-1.5 text-xs text-brand">
-                <Spinner size="sm" />
-                <span>Step {steps.length}...</span>
-              </div>
-            )}
-            {state.status === 'success' && (
-              <Badge variant="success">
-                {state.data.totalSteps} step{state.data.totalSteps !== 1 ? 's' : ''}
-              </Badge>
-            )}
-            {state.status === 'success' && state.data.stoppedReason === 'max_iterations' && (
-              <Badge variant="warning">Max steps</Badge>
-            )}
-          </div>
+        <motion.div
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="h-px mt-6 origin-left"
+          style={{ background: 'rgba(76,85,96,0.4)' }}
+        />
+
+        {/* Tool capability badges */}
+        <div className="flex flex-wrap gap-2 pt-4 pb-2">
+          {TOOL_BADGES.map((badge, i) => (
+            <motion.span
+              key={badge.label}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+              className="flex items-center gap-1.5 bg-forge-dark border border-stone-mid/50 rounded-full px-3 py-1.5 text-parchment/70 text-xs font-medium cursor-default pointer-events-none"
+            >
+              {badge.icon}
+              {badge.label}
+            </motion.span>
+          ))}
         </div>
       </div>
 
@@ -89,56 +149,69 @@ export default function AgentInterface() {
         {steps.length === 0 && state.status === 'idle' ? (
           <div className="flex items-center justify-center h-full">
             <div className="max-w-md w-full px-6 text-center">
-              <div className="w-12 h-12 rounded-xl bg-brand/10 flex items-center justify-center mx-auto mb-4">
-                <svg viewBox="0 0 24 24" className="size-6 fill-none stroke-current text-brand" strokeWidth="1.5">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" />
-                </svg>
-              </div>
-              <h3 className="font-semibold text-foreground mb-1">Multi-step AI reasoning</h3>
-              <p className="text-sm text-muted-foreground mb-5">
-                The agent breaks complex tasks into steps, uses tools, and shows its full reasoning trace.
-              </p>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className="relative flex justify-center mb-6">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full blur-xl" style={{ background: 'rgba(212,87,42,0.10)' }} />
+                  </div>
+                  <FlameIcon />
+                </div>
 
-              <div className="flex flex-wrap gap-1.5 justify-center mb-6">
-                {['Search docs', 'List files', 'Calculate', 'Web search', 'Get metadata'].map((cap) => (
-                  <span
-                    key={cap}
-                    className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border"
-                  >
-                    {cap}
-                  </span>
-                ))}
-              </div>
+                <h2 className="font-cormorant text-2xl font-light text-parchment mb-2">Multi-step Reasoning</h2>
+                <p className="text-ash-gray text-sm text-center max-w-sm mx-auto mb-6">
+                  The agent breaks complex tasks into steps, uses tools, and shows its full reasoning trace.
+                </p>
 
-              <div className="space-y-2">
-                {SUGGESTED_QUERIES.map((sq) => (
-                  <button
-                    key={sq.label}
-                    onClick={() => setQuery(sq.query)}
-                    className={cn(
-                      'w-full text-left px-4 py-3 rounded-xl border border-border',
-                      'hover:bg-accent hover:border-brand/30 transition-all duration-150 group',
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">{sq.label}</span>
-                      <span className="text-muted-foreground group-hover:text-brand transition-colors text-sm">→</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{sq.query}</p>
-                  </button>
-                ))}
-              </div>
+                <div className="space-y-2">
+                  {SUGGESTED_QUERIES.map((sq, i) => (
+                    <motion.button
+                      key={sq.label}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.08 * i, ease: [0.16, 1, 0.3, 1] }}
+                      onClick={() => handleSuggestionClick(sq.query)}
+                      className={cn(
+                        'w-full text-left bg-forge-dark border border-stone-mid/40 rounded-2xl px-5 py-4',
+                        'flex items-center justify-between group',
+                        'transition-all duration-150 hover:border-ember/40',
+                      )}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.background = 'rgba(76,85,96,0.15)'
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.background = ''
+                      }}
+                    >
+                      <div>
+                        <span className="text-parchment/85 text-sm font-medium">{sq.label}</span>
+                        <p className="text-ash-gray text-xs leading-relaxed mt-1 line-clamp-1">{sq.query}</p>
+                      </div>
+                      <motion.span
+                        className="shrink-0 ml-3 text-ember"
+                        whileHover={{ x: 3 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="h-4 w-4">
+                          <path d="M3 8h10M9 4l4 4-4 4" />
+                        </svg>
+                      </motion.span>
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
             </div>
           </div>
         ) : (
           <div className="px-6 py-6 max-w-2xl mx-auto w-full">
             {/* Query recap */}
             {steps.length > 0 && (
-              <div className="mb-6 p-4 rounded-xl bg-muted/50 border border-border">
-                <p className="label-uppercase mb-1">Query</p>
-                <p className="text-sm text-foreground">
-                  {/* Show the thought from step 1 if available, else query */}
+              <div className="mb-6 p-4 rounded-xl bg-forge-dark border border-stone-mid/40">
+                <p className="text-ash-gray text-[10px] tracking-widest uppercase mb-1">Query</p>
+                <p className="text-sm text-parchment/85">
                   {query || (steps[0]?.actionInput ? JSON.stringify(steps[0].actionInput) : 'Running...')}
                 </p>
               </div>
@@ -146,7 +219,7 @@ export default function AgentInterface() {
 
             {/* Reasoning trace */}
             <div>
-              <p className="label-uppercase mb-4">Reasoning Trace</p>
+              <p className="text-ash-gray text-[10px] tracking-widest uppercase mb-4">Reasoning Trace</p>
               <div>
                 {steps.map((step, i) => (
                   <AgentStepCard
@@ -158,18 +231,18 @@ export default function AgentInterface() {
 
                 {isRunning && (
                   <div className="flex gap-3 items-center py-2 pl-3">
-                    <div className="shrink-0 w-7 h-7 rounded-full border-2 border-brand/30 bg-brand/5 flex items-center justify-center">
+                    <div className="shrink-0 w-7 h-7 rounded-full border-2 border-ember/30 bg-ember/5 flex items-center justify-center">
                       <Spinner size="sm" />
                     </div>
-                    <span className="text-xs text-muted-foreground animate-pulse">Thinking...</span>
+                    <span className="text-xs text-ash-gray animate-pulse">Thinking...</span>
                   </div>
                 )}
               </div>
             </div>
 
             {state.status === 'error' && (
-              <div className="mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
-                <p className="text-sm text-destructive">{state.error}</p>
+              <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                <p className="text-sm text-red-400">{state.error}</p>
               </div>
             )}
 
@@ -177,14 +250,14 @@ export default function AgentInterface() {
               <div className="mt-6 flex gap-2">
                 <button
                   onClick={reset}
-                  className="text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-accent transition-colors"
+                  className="text-sm px-3 py-1.5 rounded-lg border border-stone-mid/40 text-parchment/70 hover:text-parchment hover:border-stone-mid/70 transition-colors"
                 >
                   New task
                 </button>
                 {state.status === 'success' && (
                   <button
                     onClick={() => navigator.clipboard.writeText(state.data.answer)}
-                    className="text-sm px-3 py-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+                    className="text-sm px-3 py-1.5 rounded-lg text-ash-gray hover:text-parchment transition-colors"
                   >
                     Copy answer
                   </button>
@@ -198,14 +271,14 @@ export default function AgentInterface() {
       </div>
 
       {/* Input */}
-      <div className="shrink-0 px-6 py-4 border-t border-border bg-background/80 backdrop-blur-sm">
+      <div className="shrink-0 border-t border-stone-mid/30 bg-ember-black px-6 py-4">
         <ChatInput
           value={query}
           onChange={setQuery}
           onSubmit={handleSubmit}
           isStreaming={isRunning}
           disabled={isRunning}
-          placeholder="Give the agent a multi-step task..."
+          placeholder="Assign the oracle a multi-step task..."
         />
       </div>
     </div>

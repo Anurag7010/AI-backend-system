@@ -40,7 +40,7 @@ function SparkleIcon() {
 const TYPE_CONFIG = {
   ask: {
     icon: <ChatIcon />,
-    color: 'bg-blue-500/10 text-blue-600',
+    color: 'bg-ember/10 text-ember',
     label: 'Query',
   },
   ingest: {
@@ -50,7 +50,7 @@ const TYPE_CONFIG = {
   },
   agent: {
     icon: <SparkleIcon />,
-    color: 'bg-purple-500/10 text-purple-600',
+    color: 'bg-ember/10 text-ember',
     label: 'Agent',
   },
 } as const
