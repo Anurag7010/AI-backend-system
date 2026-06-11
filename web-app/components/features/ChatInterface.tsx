@@ -187,14 +187,8 @@ export function ChatInterface({ documentId, documentName }: ChatInterfaceProps) 
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5, delay: 0.1 * i, ease: [0.16, 1, 0.3, 1] }}
                         onClick={() => handleSuggestionClick(q.title)}
-                        className="group w-full text-left bg-forge-dark border border-stone-mid/40 rounded-xl px-5 py-4 flex items-center justify-between transition-all duration-150 hover:border-stone-mid/70"
-                        style={{ background: '' }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = 'rgba(76,85,96,0.15)'
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = ''
-                        }}
+                        whileTap={{ scale: 0.98 }}
+                        className="group w-full text-left bg-forge-dark border border-stone-mid/40 rounded-xl px-5 py-4 flex items-center justify-between transition-all duration-150 hover:border-ember/30 hover:bg-stone-mid/10"
                       >
                         <div>
                           <p className="text-parchment/80 text-sm font-medium">{q.title}</p>

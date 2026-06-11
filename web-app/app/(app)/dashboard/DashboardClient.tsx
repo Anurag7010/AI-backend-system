@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion, useInView } from 'framer-motion'
+import { motion, useInView, AnimatePresence } from 'framer-motion'
 import { ArrowUpRight, Filter, Maximize2, Upload, MessageSquare, Cpu, Archive } from 'lucide-react'
 import { SpotlightCard, CountUp } from '@/components/ui/motion'
 import { EASE_ENTRANCE, DURATION } from '@/lib/motion'
@@ -224,11 +224,21 @@ export function DashboardClient({
                 AI Insights
               </p>
 
-              <div className="my-auto">
-                <p className="text-parchment text-lg font-medium leading-relaxed">
-                  {insights[insightIndex].text}
-                </p>
-                <p className="text-ash-gray text-xs mt-2">{insights[insightIndex].label}</p>
+              <div className="my-auto overflow-hidden">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={insightIndex}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <p className="text-parchment text-lg font-medium leading-relaxed">
+                      {insights[insightIndex].text}
+                    </p>
+                    <p className="text-ash-gray text-xs mt-2">{insights[insightIndex].label}</p>
+                  </motion.div>
+                </AnimatePresence>
               </div>
 
               <div className="flex items-center justify-between mt-auto pt-4">
@@ -276,18 +286,25 @@ export function DashboardClient({
               </div>
             </div>
 
-            {/* Mini chart placeholder */}
+            {/* Mini bar chart */}
             <div className="flex items-end gap-1 h-20">
-              {(queryVolumeData ?? Array.from({ length: 7 }, (_, i) => ({ queries: 0 }))).slice(-7).map((d, i) => {
+              {(queryVolumeData ?? Array.from({ length: 7 }, () => ({ queries: 0 }))).slice(-7).map((d, i) => {
                 const max = Math.max(...(queryVolumeData ?? []).map(dd => dd.queries), 1)
                 const height = ((d.queries ?? 0) / max) * 100
                 return (
-                  <div key={i} className="flex-1 flex flex-col justify-end">
-                    <div
-                      className="bg-ember/20 rounded-t-sm w-full transition-all duration-300"
-                      style={{ height: `${Math.max(height, 4)}%` }}
+                  <motion.div
+                    key={i}
+                    className="flex-1 flex flex-col justify-end group cursor-default"
+                    title={`${d.queries ?? 0} queries`}
+                  >
+                    <motion.div
+                      className="rounded-t-sm w-full transition-colors duration-150 group-hover:bg-ember/50"
+                      initial={{ scaleY: 0 }}
+                      animate={{ scaleY: 1 }}
+                      transition={{ duration: 0.4, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                      style={{ height: `${Math.max(height, 4)}%`, background: 'rgba(212,87,42,0.22)', transformOrigin: 'bottom' }}
                     />
-                  </div>
+                  </motion.div>
                 )
               })}
             </div>
@@ -486,7 +503,12 @@ export function DashboardClient({
                 >
                   <span className="text-ash-gray text-xs">{row.label}</span>
                   <span className="flex items-center gap-1.5">
-                    <span className={cn('w-1.5 h-1.5 rounded-full', row.dotClass)} />
+                    <span className="relative flex w-2 h-2 shrink-0">
+                      {row.status === 'Online' && (
+                        <span className={cn('animate-ping absolute inline-flex h-full w-full rounded-full opacity-50', row.dotClass)} />
+                      )}
+                      <span className={cn('relative rounded-full w-2 h-2', row.dotClass)} />
+                    </span>
                     <span className="text-xs text-parchment/70">{row.status}</span>
                   </span>
                 </div>

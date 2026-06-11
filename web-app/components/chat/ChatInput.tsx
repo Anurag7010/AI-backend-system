@@ -59,21 +59,11 @@ export function ChatInput({
   return (
     <div
       className={cn(
-        'relative border border-stone-mid/40 rounded-2xl transition-all duration-200',
-        'focus-within:border-ember/60',
+        'focus-within-wrapper relative border border-stone-mid/40 rounded-2xl transition-all duration-200',
+        'focus-within:border-ember/60 focus-within:shadow-[0_0_0_2px_rgba(212,87,42,0.15),0_0_16px_rgba(212,87,42,0.06)]',
         disabled && 'opacity-60',
       )}
       style={{ background: 'rgba(23,27,31,0.8)' }}
-      onFocusCapture={(e) => {
-        if (e.currentTarget !== e.target) {
-          e.currentTarget.style.boxShadow = '0 0 0 2px rgba(212,87,42,0.2)'
-        }
-      }}
-      onBlurCapture={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-          e.currentTarget.style.boxShadow = 'none'
-        }
-      }}
     >
       <textarea
         ref={textareaRef}

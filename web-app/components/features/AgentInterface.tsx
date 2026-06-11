@@ -174,17 +174,12 @@ export default function AgentInterface() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: 0.08 * i, ease: [0.16, 1, 0.3, 1] }}
                       onClick={() => handleSuggestionClick(sq.query)}
+                      whileTap={{ scale: 0.98 }}
                       className={cn(
                         'w-full text-left bg-forge-dark border border-stone-mid/40 rounded-2xl px-5 py-4',
                         'flex items-center justify-between group',
-                        'transition-all duration-150 hover:border-ember/40',
+                        'transition-all duration-150 hover:border-ember/40 hover:bg-stone-mid/10',
                       )}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(76,85,96,0.15)'
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = ''
-                      }}
                     >
                       <div>
                         <span className="text-parchment/85 text-sm font-medium">{sq.label}</span>

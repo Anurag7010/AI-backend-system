@@ -83,10 +83,17 @@ export function MessageBubble({
           ) : (
             <>
               {isStreaming && !message.content ? (
-                <div className="flex gap-1 py-1">
-                  <span className="w-1.5 h-1.5 bg-ash-gray rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-1.5 h-1.5 bg-ash-gray rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-1.5 h-1.5 bg-ash-gray rounded-full animate-bounce" />
+                <div className="flex gap-1.5 py-1.5 px-0.5">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="w-1.5 h-1.5 rounded-full bg-ash-gray/60"
+                      style={{
+                        animation: 'typingPulse 1.2s ease-in-out infinite',
+                        animationDelay: `${i * 0.18}s`,
+                      }}
+                    />
+                  ))}
                 </div>
               ) : (
                 <MarkdownMessage content={message.content} />
@@ -104,13 +111,23 @@ export function MessageBubble({
             {routedTo && (
               <span
                 className={cn(
-                  'text-xs px-1.5 py-0.5 rounded font-mono',
+                  'inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-mono',
                   routedTo === 'agent'
                     ? 'bg-ember/10 text-ember'
                     : 'bg-stone-mid/20 text-ash-gray',
                 )}
               >
-                {routedTo === 'agent' ? '⚡ agent' : '🔍 rag'}
+                {routedTo === 'agent' ? (
+                  <>
+                    <svg viewBox="0 0 12 12" fill="currentColor" className="w-2.5 h-2.5"><path d="M6 0l1.2 3.8H11l-3 2.2 1.1 3.8L6 7.6l-3.1 2.2L4 6 1 3.8h3.8z"/></svg>
+                    agent
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="w-2.5 h-2.5"><circle cx="5" cy="5" r="3.5"/><path d="M10 10l-2-2"/></svg>
+                    rag
+                  </>
+                )}
               </span>
             )}
             {retrievalQuality && retrievalQuality.quality !== 'no_results' && (

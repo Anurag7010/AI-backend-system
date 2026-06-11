@@ -334,6 +334,10 @@ input:focus {
 /* ============================================================
    KEYFRAMES — must live outside @layer
    ============================================================ */
+@keyframes typingPulse {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30%           { opacity: 1;    transform: translateY(-3px); }
+}
 @keyframes animate-in {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
