@@ -7,14 +7,14 @@ Tests:
   1. Tool discovery (list_tools)
   2. Calculate tool invocation
 """
+
 import asyncio
 import sys
 from pathlib import Path
 
 from mcp.client.session import ClientSession
-from mcp.client.stdio import stdio_client, StdioServerParameters
-from mcp.types import ListToolsResult, CallToolResult, TextContent
-
+from mcp.client.stdio import StdioServerParameters, stdio_client
+from mcp.types import CallToolResult, ListToolsResult, TextContent
 
 EXPECTED_TOOLS = {"search_documents", "calculate", "get_document_list"}
 TEST_EXPRESSION = "sqrt(144) + 10 * 2"
@@ -42,8 +42,10 @@ async def run_tests() -> None:
         async with ClientSession(read_stream, write_stream) as session:
             # --- Initialise ---
             init_result = await session.initialize()
-            print(f"[OK] Connected — server: {init_result.serverInfo.name!r} "
-                  f"v{init_result.serverInfo.version}")
+            print(
+                f"[OK] Connected — server: {init_result.serverInfo.name!r} "
+                f"v{init_result.serverInfo.version}"
+            )
             print()
 
             # --- Test 1: Tool discovery ---
@@ -78,9 +80,7 @@ async def run_tests() -> None:
                 sys.exit(1)
 
             output_texts = [
-                item.text
-                for item in call_result.content
-                if isinstance(item, TextContent)
+                item.text for item in call_result.content if isinstance(item, TextContent)
             ]
             if not output_texts:
                 print("  [FAIL] No TextContent in response", file=sys.stderr)

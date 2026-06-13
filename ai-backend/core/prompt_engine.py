@@ -15,18 +15,18 @@ Usage:
     prompt = render("qa", question="What is X?", context="X is ...")
 """
 
-from prompts.templates import qa, summarization, extraction, rag
 from observability.logger import get_logger
+from prompts.templates import extraction, qa, rag, summarization
 
 logger = get_logger(__name__)
 
 # ── Template registry ────────────────────────────────────────────────────────
 # Maps template name → (template string, required kwarg names)
 _REGISTRY: dict[str, tuple[str, list[str]]] = {
-    "qa":             (qa.TEMPLATE,             ["question", "context"]),
-    "summarization":  (summarization.TEMPLATE,  ["document"]),
-    "extraction":     (extraction.TEMPLATE,     ["document", "fields"]),
-    "rag":            (rag.TEMPLATE,            ["question", "context"]),
+    "qa": (qa.TEMPLATE, ["question", "context"]),
+    "summarization": (summarization.TEMPLATE, ["document"]),
+    "extraction": (extraction.TEMPLATE, ["document", "fields"]),
+    "rag": (rag.TEMPLATE, ["question", "context"]),
 }
 
 
@@ -51,8 +51,7 @@ def render(template_name: str, **kwargs) -> str:
     """
     if template_name not in _REGISTRY:
         raise ValueError(
-            f"[prompt_engine] Unknown template '{template_name}'. "
-            f"Available: {list_templates()}"
+            f"[prompt_engine] Unknown template '{template_name}'. " f"Available: {list_templates()}"
         )
 
     template_str, required_keys = _REGISTRY[template_name]
@@ -77,8 +76,5 @@ def render(template_name: str, **kwargs) -> str:
             f"placeholder {exc} not covered by provided kwargs."
         ) from exc
 
-    logger.debug(
-        f"[prompt_engine] Rendered '{template_name}' "
-        f"({len(rendered)} chars)"
-    )
+    logger.debug(f"[prompt_engine] Rendered '{template_name}' " f"({len(rendered)} chars)")
     return rendered

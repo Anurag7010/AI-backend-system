@@ -12,12 +12,12 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from observability.logger import get_logger
 from api.models import ErrorResponse
+from observability.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -49,6 +49,7 @@ app.add_middleware(
 # /health is excluded — load balancers call it without credentials.
 # Reads trace_id from the header directly (state not yet populated at this point).
 
+
 @app.middleware("http")
 async def api_key_middleware(request: Request, call_next):
     """Reject requests without a valid X-API-Key header (except /health)."""
@@ -56,6 +57,7 @@ async def api_key_middleware(request: Request, call_next):
         return await call_next(request)
 
     from core.config import config as _config
+
     expected_key = _config.INTERNAL_API_KEY
     provided_key = request.headers.get("X-API-Key")
 
@@ -77,6 +79,7 @@ async def api_key_middleware(request: Request, call_next):
 # Generates a fresh UUID if absent. Attaches to request.state.trace_id.
 # Echoes it back in the response header so the caller can correlate logs.
 
+
 @app.middleware("http")
 async def trace_id_middleware(request: Request, call_next):
     """Attach trace_id to every request for end-to-end observability correlation."""
@@ -92,6 +95,7 @@ async def trace_id_middleware(request: Request, call_next):
 # Global handler: catches any unhandled exception, logs it, returns 500.
 # Validation handler: catches Pydantic validation failures, returns 422.
 # Neither leaks stack traces to the client — those stay in logs only.
+
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -112,12 +116,13 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     """Pydantic validation failures. Returns field-level details with 422."""
     trace_id = getattr(request.state, "trace_id", None)
     field_errors = [
-        {"field": ".".join(str(loc) for loc in e["loc"]), "message": e["msg"]}
-        for e in exc.errors()
+        {"field": ".".join(str(loc) for loc in e["loc"]), "message": e["msg"]} for e in exc.errors()
     ]
     logger.warning(
         "request_validation_error",
@@ -137,10 +142,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 # ── Lifecycle events ──────────────────────────────────────────────────────────
 
+
 @app.on_event("startup")
 async def on_startup() -> None:
     """Log startup confirmation with port info."""
-    logger.info("api_startup", extra={"status": "started", "port": 8000})
+    import os as _os
+    logger.info("api_startup", extra={"status": "started", "port": int(_os.getenv("API_PORT", "8001"))})
 
 
 @app.on_event("shutdown")
@@ -153,4 +160,5 @@ async def on_shutdown() -> None:
 # Imported here (after app is created) to avoid circular imports.
 
 from api.routes import router  # noqa: E402
+
 app.include_router(router)

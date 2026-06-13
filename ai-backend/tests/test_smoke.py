@@ -14,11 +14,12 @@ NOT run in CI — requires OpenAI API access and a live server.
 """
 
 import json
+import os
 import time
 import pytest
 import httpx
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.getenv("AI_BACKEND_URL", "http://localhost:8001")
 API_KEY = "dev-internal-key-change-in-production"
 HEADERS = {
     "X-API-Key": API_KEY,
@@ -27,11 +28,16 @@ HEADERS = {
 
 
 def is_server_running() -> bool:
-    """Return True if the Python backend is reachable."""
+    """Return True if OUR Python backend is reachable (not just any service on port 8000)."""
     try:
         with httpx.Client(timeout=2.0) as client:
             res = client.get(f"{BASE_URL}/health")
-            return res.status_code == 200
+            if res.status_code != 200:
+                return False
+            # Verify it's our backend by checking a component that only we expose
+            body = res.json()
+            components = body.get("components", {})
+            return "logger" in components or "rag" in components
     except Exception:
         return False
 

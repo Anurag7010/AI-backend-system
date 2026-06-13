@@ -49,7 +49,7 @@ def build_context(
     total_tokens = 0
 
     for i, chunk in enumerate(chunks, 1):
-        content = chunk.get('content', '')
+        content = chunk.get("content", "")
         citation = f"[Source {i}]"
         chunk_text = f"{citation}\n{content}\n"
         chunk_tokens = count_tokens(chunk_text, model)
@@ -58,7 +58,7 @@ def build_context(
             break  # stop at chunk boundary — never truncate mid-chunk
 
         context_parts.append(chunk_text)
-        used_chunks.append({**chunk, 'citation_id': i})
+        used_chunks.append({**chunk, "citation_id": i})
         total_tokens += chunk_tokens
 
     context_string = "\n".join(context_parts) if context_parts else ""
@@ -73,8 +73,8 @@ def estimate_prompt_tokens(
 ) -> int:
     """Estimate total tokens for a complete prompt."""
     return (
-        count_tokens(system_prompt, model) +
-        count_tokens(context, model) +
-        count_tokens(question, model) +
-        50  # buffer for formatting
+        count_tokens(system_prompt, model)
+        + count_tokens(context, model)
+        + count_tokens(question, model)
+        + 50  # buffer for formatting
     )

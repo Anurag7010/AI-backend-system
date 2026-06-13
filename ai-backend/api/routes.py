@@ -18,33 +18,34 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Request, UploadFile, Form, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from observability.logger import get_logger
-from observability.tracer import new_trace_id
 from api.models import (
+    AgentRunResponse,
+    AgentStepResponse,
     AskRequest,
     AskResponse,
+    ErrorResponse,
+    HealthResponse,
     IngestResponse,
     RetrieveResponse,
-    HealthResponse,
     SourceResponse,
-    ErrorResponse,
-    AgentStepResponse,
-    AgentRunResponse,
 )
+from observability.logger import get_logger
+from observability.tracer import new_trace_id
 
 logger = get_logger(__name__)
 router = APIRouter()
 
+from core.cost_controller import cost_controller
+
 # Production middleware — imported lazily to avoid circular imports at module load
 from core.rate_limiter import ask_rate_limiter, ingest_rate_limiter
-from core.cost_controller import cost_controller
 from core.request_queue import request_queue
 
-
 # ── RAG adapter ───────────────────────────────────────────────────────────────
+
 
 class _RAGAdapter:
     """Wraps module-level rag_interface functions as an object for tool injection."""
@@ -52,6 +53,7 @@ class _RAGAdapter:
     async def retrieve(self, query: str, top_k: int = 5, strategy: str = "semantic") -> list[dict]:
         """Delegate to module-level retrieve()."""
         from rag.rag_interface import retrieve as _retrieve
+
         return await _retrieve(query=query, top_k=top_k, strategy=strategy)
 
 
@@ -78,12 +80,13 @@ class _ChromaDocumentRepository:
         """Return all ingested documents (Python side has no user concept)."""
         try:
             import chromadb
+
             client = chromadb.PersistentClient(path="external/rag_system/db/chroma_db")
             collection = client.get_or_create_collection("langchain")
             result = collection.get(include=["metadatas"])
 
             seen: dict[str, _ChromaDoc] = {}
-            for metadata in (result.get("metadatas") or []):
+            for metadata in result.get("metadatas") or []:
                 source = metadata.get("source") or metadata.get("file") or "unknown"
                 if source not in seen:
                     seen[source] = _ChromaDoc(
@@ -106,6 +109,7 @@ class _ChromaDocumentRepository:
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
+
 
 def _error_response(
     error_code: str,
@@ -134,6 +138,7 @@ def _normalize_source(chunk: dict) -> SourceResponse:
 
 # ── GET /health ───────────────────────────────────────────────────────────────
 
+
 @router.get("/health", tags=["system"])
 async def health(request: Request) -> JSONResponse:
     """
@@ -155,6 +160,7 @@ async def health(request: Request) -> JSONResponse:
     # Check: config
     try:
         from core.config import config
+
         _ = config.MODEL_NAME
         _ = config.OPENAI_API_KEY
         components["config"] = "ok"
@@ -164,6 +170,7 @@ async def health(request: Request) -> JSONResponse:
     # Check: LLM client (import only — no live API call to keep health fast)
     try:
         from core.llm_client import complete  # noqa: F401
+
         components["llm"] = "ok"
     except Exception as exc:
         components["llm"] = f"error: {exc}"
@@ -171,6 +178,7 @@ async def health(request: Request) -> JSONResponse:
     # Check: RAG interface importable
     try:
         from rag.rag_interface import retrieve  # noqa: F401
+
         components["rag"] = "ok"
     except Exception as exc:
         components["rag"] = f"error: {exc}"
@@ -178,35 +186,44 @@ async def health(request: Request) -> JSONResponse:
     overall = "ok" if all(v == "ok" for v in components.values()) else "degraded"
 
     import psutil
+
     process = psutil.Process()
     memory_mb = process.memory_info().rss / 1024 / 1024
 
-    from core.cache import retrieval_cache, llm_cache
-    return JSONResponse(content={
-        "status": overall,
-        "components": components,
-        "cache": {
-            "retrieval": retrieval_cache.stats,
-            "llm": llm_cache.stats,
-        },
-        "queue": request_queue.stats,
-        "rate_limiter": ask_rate_limiter.get_stats(),
-        "system": {
-            "memory_mb": round(memory_mb, 1),
-            "memory_warning": memory_mb > 1024,
-        },
-    })
+    from core.cache import llm_cache, retrieval_cache
+
+    return JSONResponse(
+        content={
+            "status": overall,
+            "components": components,
+            "cache": {
+                "retrieval": retrieval_cache.stats,
+                "llm": llm_cache.stats,
+            },
+            "queue": request_queue.stats,
+            "rate_limiter": ask_rate_limiter.get_stats(),
+            "system": {
+                "memory_mb": round(memory_mb, 1),
+                "memory_warning": memory_mb > 1024,
+            },
+        }
+    )
 
 
 # ── POST /ask ─────────────────────────────────────────────────────────────────
 
-async def _run_ask_pipeline(body: AskRequest, user_id: str, trace_id: str) -> AskResponse | JSONResponse:
+
+async def _run_ask_pipeline(
+    body: AskRequest, user_id: str, trace_id: str
+) -> AskResponse | JSONResponse:
     """The actual RAG/agent pipeline — called via request_queue.run()."""
-    from agents.router import route_query, QueryRoute
+    from agents.router import QueryRoute, route_query
+
     route = route_query(body.query, trace_id)
 
     if route == QueryRoute.AGENT:
         from agents.factory import create_agent
+
         rag = _RAGAdapter()
         doc_repo = _ChromaDocumentRepository()
         agent = create_agent(rag_interface=rag, documents_repository=doc_repo)
@@ -228,6 +245,7 @@ async def _run_ask_pipeline(body: AskRequest, user_id: str, trace_id: str) -> As
         )
 
     from rag.rag_interface import ask as rag_ask
+
     result = await rag_ask(query=body.query, history=body.history, trace_id=trace_id)
 
     if result.get("error"):
@@ -312,7 +330,9 @@ async def ask(body: AskRequest, request: Request) -> AskResponse | JSONResponse:
             content={"error": "SERVICE_BUSY", "message": str(exc)},
         )
     except Exception as exc:
-        logger.error("ask_unhandled_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True)
+        logger.error(
+            "ask_unhandled_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True
+        )
         return _error_response("ask_failed", str(exc), trace_id, 500)
 
     # 4. Record token usage from result metadata (best-effort)
@@ -329,6 +349,7 @@ async def ask(body: AskRequest, request: Request) -> AskResponse | JSONResponse:
 
 
 # ── POST /ask/stream ──────────────────────────────────────────────────────────
+
 
 def _sse_event(data: dict) -> str:
     """Format a dict as an SSE data event."""
@@ -351,8 +372,8 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
     async def generate():
         t0 = time.perf_counter()
         try:
-            from rag.rag_interface import retrieve as rag_retrieve
             from core.llm_client import stream as llm_stream
+            from rag.rag_interface import retrieve as rag_retrieve
 
             chunks: list[dict] = await rag_retrieve(body.query, body.top_k, body.strategy)
             valid_chunks = [c for c in chunks if "error" not in c]
@@ -407,6 +428,7 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
 
 # ── POST /ingest ──────────────────────────────────────────────────────────────
 
+
 @router.post("/ingest", response_model=IngestResponse, tags=["rag"])
 async def ingest(
     request: Request,
@@ -440,6 +462,7 @@ async def ingest(
 
     try:
         import json as _json
+
         from rag.rag_interface import ingest as rag_ingest
 
         # Parse metadata JSON string from form field
@@ -464,7 +487,7 @@ async def ingest(
             "ingest_file_received",
             extra={
                 "trace_id": trace_id,
-                "file_name": file.filename,      # "filename" is reserved by Python logging.LogRecord
+                "file_name": file.filename,  # "filename" is reserved by Python logging.LogRecord
                 "size_bytes": len(content),
                 "tmp_path": tmp_path,
             },
@@ -511,6 +534,7 @@ async def ingest(
 
 # ── GET /retrieve ─────────────────────────────────────────────────────────────
 
+
 @router.get("/retrieve", response_model=RetrieveResponse, tags=["rag"])
 async def retrieve(
     request: Request,
@@ -552,6 +576,7 @@ async def retrieve(
 
 
 # ── POST /agent/run ───────────────────────────────────────────────────────────
+
 
 @router.post("/agent/run", response_model=AgentRunResponse, tags=["agent"])
 async def run_agent(body: AskRequest, request: Request) -> AgentRunResponse | JSONResponse:
@@ -596,28 +621,36 @@ async def run_agent(body: AskRequest, request: Request) -> AgentRunResponse | JS
         )
 
     except Exception as exc:
-        logger.error("agent_run_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True)
+        logger.error(
+            "agent_run_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True
+        )
         return _error_response("agent_failed", str(exc), trace_id, 500)
 
 
 # ── GET /cache/stats ──────────────────────────────────────────────────────────
 
+
 @router.get("/cache/stats", tags=["system"])
 async def cache_stats(request: Request) -> JSONResponse:
     """Return current cache hit rates and sizes."""
-    from core.cache import retrieval_cache, llm_cache
-    return JSONResponse(content={
-        "retrieval": retrieval_cache.stats,
-        "llm": llm_cache.stats,
-    })
+    from core.cache import llm_cache, retrieval_cache
+
+    return JSONResponse(
+        content={
+            "retrieval": retrieval_cache.stats,
+            "llm": llm_cache.stats,
+        }
+    )
 
 
 # ── POST /cache/clear ─────────────────────────────────────────────────────────
 
+
 @router.post("/cache/clear", tags=["system"])
 async def cache_clear(request: Request) -> JSONResponse:
     """Clear all caches. Use after bulk document re-ingestion."""
-    from core.cache import retrieval_cache, llm_cache
+    from core.cache import llm_cache, retrieval_cache
+
     retrieval_cache.clear()
     llm_cache.clear()
     return JSONResponse(content={"cleared": True})
@@ -625,55 +658,66 @@ async def cache_clear(request: Request) -> JSONResponse:
 
 # ── GET /metrics ──────────────────────────────────────────────────────────────
 
+
 @router.get("/metrics", tags=["system"])
 async def get_metrics(hours: int = 24) -> JSONResponse:
     """Return aggregated AI system metrics from structured logs."""
     from observability.metrics import compute_metrics
+
     metrics = compute_metrics(since_hours=hours)
     return JSONResponse(content=metrics)
 
 
 # ── GET /memories ─────────────────────────────────────────────────────────────
 
+
 @router.get("/memories", tags=["memory"])
 async def list_memories(request: Request) -> JSONResponse:
     """List all long-term memories for the authenticated user."""
     trace_id: str = getattr(request.state, "trace_id", new_trace_id())
-    user_id = request.headers.get('X-User-ID')
+    user_id = request.headers.get("X-User-ID")
     if not user_id:
         return _error_response("missing_user_id", "X-User-ID header required", trace_id, 400)
     try:
         from memory.long_term_memory import LongTermMemoryStore
+
         store = LongTermMemoryStore()
         memories = await store.list_memories(user_id)
         return JSONResponse(content={"memories": memories, "count": len(memories)})
     except Exception as exc:
-        logger.error("list_memories_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True)
+        logger.error(
+            "list_memories_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True
+        )
         return _error_response("list_memories_failed", str(exc), trace_id, 500)
 
 
 # ── DELETE /memories/{memory_id} ──────────────────────────────────────────────
 
+
 @router.delete("/memories/{memory_id}", tags=["memory"])
 async def delete_memory_endpoint(memory_id: str, request: Request) -> JSONResponse:
     """Delete a specific memory. Verifies the memory belongs to the requesting user."""
     trace_id: str = getattr(request.state, "trace_id", new_trace_id())
-    user_id = request.headers.get('X-User-ID')
+    user_id = request.headers.get("X-User-ID")
     if not user_id:
         return _error_response("missing_user_id", "X-User-ID header required", trace_id, 400)
     try:
         from memory.long_term_memory import LongTermMemoryStore
+
         store = LongTermMemoryStore()
         deleted = await store.delete_memory(memory_id, user_id)
         if not deleted:
             return _error_response("not_found", "Memory not found or access denied", trace_id, 404)
         return JSONResponse(content={"deleted": True})
     except Exception as exc:
-        logger.error("delete_memory_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True)
+        logger.error(
+            "delete_memory_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True
+        )
         return _error_response("delete_memory_failed", str(exc), trace_id, 500)
 
 
 # ── POST /memories/extract ────────────────────────────────────────────────────
+
 
 @router.post("/memories/extract", tags=["memory"])
 async def extract_and_store_memories(
@@ -687,22 +731,27 @@ async def extract_and_store_memories(
     Returns immediately; extraction runs in background.
     """
     trace_id: str = getattr(request.state, "trace_id", new_trace_id())
-    user_id = body.get('user_id')
-    messages = body.get('messages', [])
+    user_id = body.get("user_id")
+    messages = body.get("messages", [])
 
     if not user_id:
         return _error_response("missing_user_id", "user_id required in body", trace_id, 400)
 
     async def _extract_and_store() -> None:
         try:
-            from memory.memory_extractor import extract_memories
             from memory.long_term_memory import LongTermMemoryStore
+            from memory.memory_extractor import extract_memories
+
             facts = await extract_memories(messages, trace_id=trace_id)
             store = LongTermMemoryStore()
             for fact in facts:
                 await store.store_memory(user_id, fact, trace_id=trace_id)
         except Exception as exc:
-            logger.error("background_memory_extraction_error", extra={"trace_id": trace_id, "error": str(exc)}, exc_info=True)
+            logger.error(
+                "background_memory_extraction_error",
+                extra={"trace_id": trace_id, "error": str(exc)},
+                exc_info=True,
+            )
 
     background_tasks.add_task(_extract_and_store)
     return JSONResponse(content={"status": "extraction_started"})

@@ -1,9 +1,11 @@
 # ai-backend/agents/tools/implementations.py
-from typing import Any, Callable, Optional
-from pydantic import BaseModel, Field
-import math
 import ast
+import math
 import operator
+from typing import Any, Callable, Optional
+
+from pydantic import BaseModel, Field
+
 from agents.tools.base import BaseTool
 
 
@@ -25,16 +27,12 @@ class SearchDocumentsTool(BaseTool):
 
     async def _execute(self, input: InputSchema) -> list[dict]:
         """Search documents via RAG retrieve."""
-        chunks = await self.rag.retrieve(
-            query=input.query,
-            top_k=input.top_k,
-            strategy="semantic"
-        )
+        chunks = await self.rag.retrieve(query=input.query, top_k=input.top_k, strategy="semantic")
         return [
             {
                 "content": c.get("content", ""),
                 "score": round(c.get("score", 0), 3),
-                "source": c.get("metadata", {}).get("source", "unknown")
+                "source": c.get("metadata", {}).get("source", "unknown"),
             }
             for c in chunks
         ]
@@ -65,7 +63,7 @@ class GetDocumentListTool(BaseTool):
                 "filename": d.filename,
                 "status": d.status,
                 "chunk_count": d.chunk_count,
-                "created_at": d.created_at.isoformat() if d.created_at else None
+                "created_at": d.created_at.isoformat() if d.created_at else None,
             }
             for d in docs
         ]
@@ -93,8 +91,7 @@ class GetDocumentMetadataTool(BaseTool):
         if not doc:
             all_docs = await self.repo.findByUser(self.user_id)
             doc = next(
-                (d for d in all_docs if input.identifier.lower() in d.filename.lower()),
-                None
+                (d for d in all_docs if input.identifier.lower() in d.filename.lower()), None
             )
         if not doc:
             return {"error": f"Document '{input.identifier}' not found"}
@@ -141,14 +138,14 @@ class CalculateTool(BaseTool):
             return {
                 "expression": input.expression,
                 "result": result,
-                "formatted": f"{input.expression} = {result}"
+                "formatted": f"{input.expression} = {result}",
             }
         except Exception as e:
             return {"error": f"Could not evaluate '{input.expression}': {str(e)}"}
 
     def _safe_eval(self, expr: str) -> float | int:
         """Parse expression as AST and evaluate only allowed nodes."""
-        tree = ast.parse(expr, mode='eval')
+        tree = ast.parse(expr, mode="eval")
         return self._eval_node(tree.body)
 
     def _eval_node(self, node: ast.AST) -> Any:

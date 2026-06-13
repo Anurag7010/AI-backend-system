@@ -14,6 +14,7 @@ from typing import Optional
 def read_log_lines(since_hours: int = 24) -> list[dict]:
     """Read and parse JSON log lines from the last N hours. Skips malformed lines."""
     from core.config import config
+
     log_file = Path(config.LOG_FILE)
 
     if not log_file.exists():
@@ -29,14 +30,14 @@ def read_log_lines(since_hours: int = 24) -> list[dict]:
                 continue
             try:
                 entry = json.loads(line)
-                ts_str = entry.get('time', '')
+                ts_str = entry.get("time", "")
                 # Handle both 'time' (JSON logger format) and 'timestamp' fields
                 if not ts_str:
-                    ts_str = entry.get('timestamp', '')
+                    ts_str = entry.get("timestamp", "")
                 if not ts_str:
                     continue
                 # Strip trailing Z and parse — preserve timezone info
-                ts = datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
+                ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
                 if ts >= cutoff:
                     lines.append(entry)
             except (json.JSONDecodeError, ValueError):
@@ -56,25 +57,25 @@ def compute_metrics(since_hours: int = 24) -> dict:
     lines = read_log_lines(since_hours)
 
     # Filter by event type using the 'msg' field (how logger.py stores event name)
-    llm_calls = [l for l in lines if l.get('msg') == 'llm_call']
-    retrieval_calls = [l for l in lines if l.get('msg') == 'retrieval']
-    pipeline_starts = [l for l in lines if l.get('msg') == 'pipeline_start']
-    cache_events = [l for l in lines if l.get('msg') in ('cache_hit', 'cache_miss')]
+    llm_calls = [l for l in lines if l.get("msg") == "llm_call"]
+    retrieval_calls = [l for l in lines if l.get("msg") == "retrieval"]
+    pipeline_starts = [l for l in lines if l.get("msg") == "pipeline_start"]
+    cache_events = [l for l in lines if l.get("msg") in ("cache_hit", "cache_miss")]
 
     total_queries = len(pipeline_starts)
 
-    latencies = [l['latency_ms'] for l in llm_calls if 'latency_ms' in l]
+    latencies = [l["latency_ms"] for l in llm_calls if "latency_ms" in l]
     avg_latency = sum(latencies) / len(latencies) if latencies else 0
 
-    errors = [l for l in llm_calls if l.get('status') == 'error']
+    errors = [l for l in llm_calls if l.get("status") == "error"]
     error_rate = len(errors) / len(llm_calls) if llm_calls else 0
 
-    hits = [l for l in cache_events if l.get('msg') == 'cache_hit']
+    hits = [l for l in cache_events if l.get("msg") == "cache_hit"]
     cache_hit_rate = len(hits) / len(cache_events) if cache_events else 0
 
     # Token fields: log_llm_call stores them as top-level keys
-    input_tokens = sum(l.get('input_tokens', 0) for l in llm_calls)
-    output_tokens = sum(l.get('output_tokens', 0) for l in llm_calls)
+    input_tokens = sum(l.get("input_tokens", 0) for l in llm_calls)
+    output_tokens = sum(l.get("output_tokens", 0) for l in llm_calls)
     total_tokens = input_tokens + output_tokens
 
     # gpt-4o pricing
@@ -85,10 +86,10 @@ def compute_metrics(since_hours: int = 24) -> dict:
         + output_tokens / 1_000_000 * OUTPUT_PRICE_PER_1M
     )
 
-    slow_queries = len([l for l in llm_calls if l.get('latency_ms', 0) > 5000])
+    slow_queries = len([l for l in llm_calls if l.get("latency_ms", 0) > 5000])
 
     # retrieval log_retrieval() stores result_count (not chunks_returned)
-    failed_retrievals = len([l for l in retrieval_calls if l.get('result_count', 1) == 0])
+    failed_retrievals = len([l for l in retrieval_calls if l.get("result_count", 1) == 0])
 
     return {
         "period_hours": since_hours,

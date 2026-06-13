@@ -18,6 +18,7 @@ from observability.logger import log_pipeline_event
 @dataclass
 class RateLimitResult:
     """Result of a rate limit check."""
+
     allowed: bool
     user_id: str
     requests_in_window: int
@@ -55,13 +56,13 @@ class SlidingWindowRateLimiter:
             oldest = user_window[0]
             retry_after = int(oldest + self.window - now) + 1
             log_pipeline_event(
-                event='rate_limit_exceeded',
-                trace_id=trace_id or '',
+                event="rate_limit_exceeded",
+                trace_id=trace_id or "",
                 metadata={
-                    'user_id': user_id,
-                    'requests_in_window': count,
-                    'limit': self.limit,
-                    'retry_after': retry_after,
+                    "user_id": user_id,
+                    "requests_in_window": count,
+                    "limit": self.limit,
+                    "retry_after": retry_after,
                 },
             )
             return RateLimitResult(
@@ -86,12 +87,11 @@ class SlidingWindowRateLimiter:
     def get_stats(self) -> dict:
         """Return current rate limiter state for health monitoring."""
         return {
-            'tracked_users': len(self._windows),
-            'limit': self.limit,
-            'window_seconds': self.window,
-            'users_near_limit': sum(
-                1 for w in self._windows.values()
-                if len(w) >= self.limit * 0.8
+            "tracked_users": len(self._windows),
+            "limit": self.limit,
+            "window_seconds": self.window,
+            "users_near_limit": sum(
+                1 for w in self._windows.values() if len(w) >= self.limit * 0.8
             ),
         }
 

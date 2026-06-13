@@ -5,12 +5,14 @@ import re
 from dataclasses import dataclass
 from typing import Any, Optional
 
+
 @dataclass
 class ValidationResult:
     valid: bool
-    data: Optional[Any]      # parsed data if valid
-    error: Optional[str]     # error message if invalid
-    raw: str                 # original LLM output
+    data: Optional[Any]  # parsed data if valid
+    error: Optional[str]  # error message if invalid
+    raw: str  # original LLM output
+
 
 def validate_json_output(raw: str, schema: Optional[dict] = None) -> ValidationResult:
     """
@@ -20,8 +22,8 @@ def validate_json_output(raw: str, schema: Optional[dict] = None) -> ValidationR
     - Leading/trailing prose before/after the JSON
     """
     # Strip markdown code blocks
-    cleaned = re.sub(r'```(?:json)?\s*', '', raw).strip()
-    cleaned = cleaned.strip('`').strip()
+    cleaned = re.sub(r"```(?:json)?\s*", "", raw).strip()
+    cleaned = cleaned.strip("`").strip()
 
     # Try direct parse first
     try:
@@ -33,7 +35,7 @@ def validate_json_output(raw: str, schema: Optional[dict] = None) -> ValidationR
         pass
 
     # Try to extract JSON from within the text
-    json_pattern = re.compile(r'\{.*\}|\[.*\]', re.DOTALL)
+    json_pattern = re.compile(r"\{.*\}|\[.*\]", re.DOTALL)
     match = json_pattern.search(cleaned)
     if match:
         try:
@@ -45,11 +47,9 @@ def validate_json_output(raw: str, schema: Optional[dict] = None) -> ValidationR
             pass
 
     return ValidationResult(
-        valid=False,
-        data=None,
-        error=f"Could not parse JSON from LLM output: {raw[:100]}",
-        raw=raw
+        valid=False, data=None, error=f"Could not parse JSON from LLM output: {raw[:100]}", raw=raw
     )
+
 
 def validate_prose_output(raw: str) -> ValidationResult:
     """
@@ -73,13 +73,11 @@ def validate_prose_output(raw: str) -> ValidationResult:
     for pattern in failure_patterns:
         if pattern in lower:
             return ValidationResult(
-                valid=False,
-                data=None,
-                error=f"LLM refusal detected: {pattern}",
-                raw=raw
+                valid=False, data=None, error=f"LLM refusal detected: {pattern}", raw=raw
             )
 
     return ValidationResult(valid=True, data=stripped, error=None, raw=raw)
+
 
 def _validate_against_schema(data: Any, schema: dict) -> None:
     """
@@ -88,18 +86,18 @@ def _validate_against_schema(data: Any, schema: dict) -> None:
 
     Note: property-level type checking is not performed; only top-level type and required fields are validated.
     """
-    if schema.get('type') == 'object':
+    if schema.get("type") == "object":
         if not isinstance(data, dict):
             raise ValueError(f"Expected object, got {type(data).__name__}")
-        for field in schema.get('required', []):
+        for field in schema.get("required", []):
             if field not in data:
                 raise ValueError(f"Missing required field: {field}")
-    elif schema.get('type') == 'array':
+    elif schema.get("type") == "array":
         if not isinstance(data, list):
             raise ValueError(f"Expected array, got {type(data).__name__}")
-        min_items = schema.get('minItems', 0)
+        min_items = schema.get("minItems", 0)
         if len(data) < min_items:
             raise ValueError(f"Array too short: {len(data)} < {min_items}")
-        max_items = schema.get('maxItems')
+        max_items = schema.get("maxItems")
         if max_items is not None and len(data) > max_items:
             raise ValueError(f"Array too long: {len(data)} > {max_items}")

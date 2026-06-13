@@ -17,7 +17,7 @@ from observability.logger import log_pipeline_event
 
 @dataclass
 class BufferedMessage:
-    role: str      # 'user' | 'assistant' | 'system'
+    role: str  # 'user' | 'assistant' | 'system'
     content: str
     token_count: int
 
@@ -29,7 +29,7 @@ class ConversationBuffer:
     Always preserves at least the last 4 messages verbatim.
     """
 
-    def __init__(self, max_tokens: int = 2000, strategy: str = 'window', model: str = None):
+    def __init__(self, max_tokens: int = 2000, strategy: str = "window", model: str = None):
         self.max_tokens = max_tokens
         self.strategy = strategy
         self.model = model or config.MODEL_NAME
@@ -62,16 +62,16 @@ class ConversationBuffer:
         """
         self._messages = []
         for msg in db_messages:
-            token_count = msg.get('token_count') or self._count_tokens(msg['content'])
-            self._messages.append(BufferedMessage(
-                role=msg['role'], content=msg['content'], token_count=token_count
-            ))
+            token_count = msg.get("token_count") or self._count_tokens(msg["content"])
+            self._messages.append(
+                BufferedMessage(role=msg["role"], content=msg["content"], token_count=token_count)
+            )
 
     def trim(self, trace_id: str = None) -> None:
         """Trim buffer to fit within max_tokens using configured strategy."""
         if self.total_tokens <= self.max_tokens:
             return
-        if self.strategy == 'window':
+        if self.strategy == "window":
             self._trim_window(trace_id)
         else:
             self._trim_with_summary(trace_id)
@@ -81,11 +81,15 @@ class ConversationBuffer:
         MIN_KEEP = 4
         while self.total_tokens > self.max_tokens and len(self._messages) > MIN_KEEP:
             removed = self._messages.pop(0)
-            log_pipeline_event(event='memory_window_trim', trace_id=trace_id, metadata={
-                'removed_role': removed.role,
-                'tokens_freed': removed.token_count,
-                'remaining_messages': len(self._messages)
-            })
+            log_pipeline_event(
+                event="memory_window_trim",
+                trace_id=trace_id,
+                metadata={
+                    "removed_role": removed.role,
+                    "tokens_freed": removed.token_count,
+                    "remaining_messages": len(self._messages),
+                },
+            )
 
     def _trim_with_summary(self, trace_id: str = None) -> None:
         """
@@ -99,20 +103,21 @@ class ConversationBuffer:
         split_point = len(self._messages) // 2
         to_summarize = self._messages[:split_point]
         to_keep = self._messages[split_point:]
-        formatted = '\n'.join(f"{m.role.upper()}: {m.content}" for m in to_summarize)
+        formatted = "\n".join(f"{m.role.upper()}: {m.content}" for m in to_summarize)
         self._pending_summary_text = formatted
         self._messages = to_keep
-        log_pipeline_event(event='memory_summary_triggered', trace_id=trace_id, metadata={
-            'messages_compressed': split_point,
-            'messages_kept': len(to_keep)
-        })
+        log_pipeline_event(
+            event="memory_summary_triggered",
+            trace_id=trace_id,
+            metadata={"messages_compressed": split_point, "messages_kept": len(to_keep)},
+        )
 
     async def summarize_pending(self, trace_id: str = None) -> None:
         """
         If a summary is pending, call LLM to generate it.
         Prepend the summary as a system message.
         """
-        if not hasattr(self, '_pending_summary_text'):
+        if not hasattr(self, "_pending_summary_text"):
             return
 
         # complete() is synchronous — run it in a thread to avoid blocking the event loop
@@ -124,22 +129,29 @@ class ConversationBuffer:
             trace_id=trace_id,
         )
 
-        summary_text = summary_result.get('text', '').strip()
+        summary_text = summary_result.get("text", "").strip()
         summary_tokens = 0
         if summary_text:
             self._summary = summary_text
             summary_tokens = self._count_tokens(f"[Earlier conversation summary]: {summary_text}")
-            self._messages.insert(0, BufferedMessage(
-                role='system',
-                content=f"[Earlier conversation summary]: {summary_text}",
-                token_count=summary_tokens
-            ))
+            self._messages.insert(
+                0,
+                BufferedMessage(
+                    role="system",
+                    content=f"[Earlier conversation summary]: {summary_text}",
+                    token_count=summary_tokens,
+                ),
+            )
         del self._pending_summary_text
-        log_pipeline_event(event='memory_summary_complete', trace_id=trace_id, metadata={'summary_tokens': summary_tokens})
+        log_pipeline_event(
+            event="memory_summary_complete",
+            trace_id=trace_id,
+            metadata={"summary_tokens": summary_tokens},
+        )
 
     def to_messages(self) -> list[dict]:
         """Export buffer as list of {role, content} dicts for the LLM."""
-        return [{'role': m.role, 'content': m.content} for m in self._messages]
+        return [{"role": m.role, "content": m.content} for m in self._messages]
 
     def get_token_counts(self) -> list[int]:
         """Export token counts for saving to DB."""

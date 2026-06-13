@@ -1,13 +1,13 @@
 # ai-backend/agents/factory.py
+from agents.react_agent import ReActAgent
 from agents.tools.base import ToolRegistry
 from agents.tools.implementations import (
-    SearchDocumentsTool,
+    CalculateTool,
     GetDocumentListTool,
     GetDocumentMetadataTool,
-    CalculateTool,
+    SearchDocumentsTool,
 )
 from agents.tools.web_search import WebSearchTool
-from agents.react_agent import ReActAgent
 
 
 def create_agent(
@@ -28,7 +28,4 @@ def create_agent(
     registry.register(CalculateTool())
     if enable_web_search:
         registry.register(WebSearchTool())
-    return ReActAgent(
-        tool_registry=registry,
-        max_iterations=max_iterations
-    )
+    return ReActAgent(tool_registry=registry, max_iterations=max_iterations)

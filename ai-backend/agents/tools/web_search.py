@@ -28,12 +28,14 @@ class WebSearchTool(BaseTool):
         """
         api_key = config.TAVILY_API_KEY
         if not api_key:
-            return [{
-                "title": "Web search not configured",
-                "url": "",
-                "content": "Tavily API key not set. Add TAVILY_API_KEY to .env to enable web search.",
-                "score": 0.0,
-            }]
+            return [
+                {
+                    "title": "Web search not configured",
+                    "url": "",
+                    "content": "Tavily API key not set. Add TAVILY_API_KEY to .env to enable web search.",
+                    "score": 0.0,
+                }
+            ]
 
         from tavily import TavilyClient
 

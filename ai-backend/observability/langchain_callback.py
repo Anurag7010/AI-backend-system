@@ -5,7 +5,7 @@ from uuid import UUID
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.outputs import LLMResult
 
-from observability.logger import log_llm_call, log_retrieval, log_pipeline_event
+from observability.logger import log_llm_call, log_pipeline_event, log_retrieval
 
 
 class ObservabilityCallback(BaseCallbackHandler):
@@ -63,7 +63,11 @@ class ObservabilityCallback(BaseCallbackHandler):
 
         log_llm_call(
             trace_id=self.trace_id,
-            model=response.llm_output.get("model_name", "unknown") if response.llm_output else "unknown",
+            model=(
+                response.llm_output.get("model_name", "unknown")
+                if response.llm_output
+                else "unknown"
+            ),
             input_tokens=usage.get("prompt_tokens", 0),
             output_tokens=usage.get("completion_tokens", 0),
             latency_ms=round(latency_ms, 2),

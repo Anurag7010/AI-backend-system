@@ -5,13 +5,14 @@ Parallel implementation to rag_interface.py for learning purposes.
 Decision: LCEL used for standard RAG chain + callbacks; manual code used for
 agent loop, memory, guardrails, output validation (see docs/architecture.md).
 """
-from operator import itemgetter
-from typing import Callable, Awaitable
 
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
+from operator import itemgetter
+from typing import Awaitable, Callable
+
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda
+from langchain_openai import ChatOpenAI
 
 from core.config import config
 from observability.langchain_callback import ObservabilityCallback
@@ -41,15 +42,23 @@ def build_qa_chain(retriever_fn: Callable[[str], Awaitable[list[dict]]]):
         streaming=False,
     )
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", (
-            "You are a precise document assistant. Answer questions using ONLY the provided context.\n"
-            "If the context does not contain enough information, say: "
-            '"I don\'t have enough information in the provided documents."\n'
-            "Always cite sources using [Source N] notation."
-        )),
-        ("human", "Context:\n{context}\n\nQuestion: {question}\n\nAnswer (with [Source N] citations):"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                (
+                    "You are a precise document assistant. Answer questions using ONLY the provided context.\n"
+                    "If the context does not contain enough information, say: "
+                    '"I don\'t have enough information in the provided documents."\n'
+                    "Always cite sources using [Source N] notation."
+                ),
+            ),
+            (
+                "human",
+                "Context:\n{context}\n\nQuestion: {question}\n\nAnswer (with [Source N] citations):",
+            ),
+        ]
+    )
 
     async def retrieve_and_format(query: str) -> str:
         """Retrieve chunks and format as numbered context string."""
@@ -57,8 +66,7 @@ def build_qa_chain(retriever_fn: Callable[[str], Awaitable[list[dict]]]):
         if not chunks:
             return "No relevant information found in documents."
         return "\n\n".join(
-            f"[Source {i + 1}]\n{chunk.get('content', '')}"
-            for i, chunk in enumerate(chunks)
+            f"[Source {i + 1}]\n{chunk.get('content', '')}" for i, chunk in enumerate(chunks)
         )
 
     retriever_runnable = RunnableLambda(retrieve_and_format)
@@ -103,7 +111,7 @@ async def run_lcel_qa(
         "sources": [],  # LCEL chain does not return structured sources
         "trace_id": trace_id,
         "latency_breakdown": {
-            "retrieval_ms": 0,   # tracked in callback logs
+            "retrieval_ms": 0,  # tracked in callback logs
             "generation_ms": 0,
             "total_ms": total_ms,
         },

@@ -3,19 +3,22 @@
 from dataclasses import dataclass
 from typing import ClassVar, Optional
 
+
 @dataclass
 class PromptTemplate:
     name: str
     version: str
-    system: str        # system prompt content
-    user_template: str # user prompt template with {variable} placeholders
+    system: str  # system prompt content
+    user_template: str  # user prompt template with {variable} placeholders
     output_schema: Optional[dict] = None  # expected JSON schema if structured output
+
 
 class PromptRegistry:
     """
     Single source of truth for all prompts.
     Version string format: "{name}_v{N}" e.g. "qa_v2"
     """
+
     _prompts: ClassVar[dict[str, PromptTemplate]] = {}
 
     @classmethod
@@ -42,11 +45,13 @@ class PromptRegistry:
     def all_versions(cls) -> dict[str, str]:
         return {name: t.version for name, t in cls._prompts.items()}
 
+
 # Register all prompts at module level
-PromptRegistry.register(PromptTemplate(
-    name="qa",
-    version="qa_v2",
-    system="""You are a precise document assistant. Your job is to answer questions using ONLY the provided document context.
+PromptRegistry.register(
+    PromptTemplate(
+        name="qa",
+        version="qa_v2",
+        system="""You are a precise document assistant. Your job is to answer questions using ONLY the provided document context.
 
 Rules you must follow without exception:
 
@@ -61,20 +66,22 @@ Output format:
 - Answer in clear prose
 - Include [Source N] citations inline where you use information from that source
 - Keep answers under 500 words unless the question requires more detail""",
-    user_template="""Context from documents:
+        user_template="""Context from documents:
 
 {context}
 
 Question: {question}
 
 Answer (cite sources inline using [Source N] notation):""",
-    output_schema=None
-))
+        output_schema=None,
+    )
+)
 
-PromptRegistry.register(PromptTemplate(
-    name="summarization",
-    version="summarization_v1",
-    system="""You are a document summarization assistant. Produce clear, structured summaries.
+PromptRegistry.register(
+    PromptTemplate(
+        name="summarization",
+        version="summarization_v1",
+        system="""You are a document summarization assistant. Produce clear, structured summaries.
 
 Rules:
 1. Summarize only what is in the provided text — no external knowledge
@@ -88,22 +95,24 @@ Output format (JSON):
   "key_points": ["point 1", "point 2", ...],
   "word_count": N
 }""",
-    user_template="Text to summarize:\n\n{document}",
-    output_schema={
-        "type": "object",
-        "required": ["overview", "key_points", "word_count"],
-        "properties": {
-            "overview": {"type": "string"},
-            "key_points": {"type": "array", "items": {"type": "string"}},
-            "word_count": {"type": "integer"}
-        }
-    }
-))
+        user_template="Text to summarize:\n\n{document}",
+        output_schema={
+            "type": "object",
+            "required": ["overview", "key_points", "word_count"],
+            "properties": {
+                "overview": {"type": "string"},
+                "key_points": {"type": "array", "items": {"type": "string"}},
+                "word_count": {"type": "integer"},
+            },
+        },
+    )
+)
 
-PromptRegistry.register(PromptTemplate(
-    name="extraction",
-    version="extraction_v1",
-    system="""You are a data extraction assistant. Extract specific fields from documents.
+PromptRegistry.register(
+    PromptTemplate(
+        name="extraction",
+        version="extraction_v1",
+        system="""You are a data extraction assistant. Extract specific fields from documents.
 
 Rules:
 1. Extract ONLY what is explicitly stated in the document
@@ -111,38 +120,42 @@ Rules:
 3. Output valid JSON matching the requested schema exactly
 
 Output format: valid JSON only — no prose, no markdown, no explanation""",
-    user_template="""Document:
+        user_template="""Document:
 
 {document}
 
 Extract these fields: {fields}
 
 Output as JSON:""",
-    output_schema=None
-))
+        output_schema=None,
+    )
+)
 
-PromptRegistry.register(PromptTemplate(
-    name="off_topic_check",
-    version="off_topic_check_v1",
-    system="""You are a query classifier. Determine if a user query is relevant to the provided document domain.
+PromptRegistry.register(
+    PromptTemplate(
+        name="off_topic_check",
+        version="off_topic_check_v1",
+        system="""You are a query classifier. Determine if a user query is relevant to the provided document domain.
 
 Output exactly one of:
 - "relevant" — the query is about the document content
 - "irrelevant" — the query is unrelated to the document content
 
 Output the single word only. No explanation.""",
-    user_template="""Document domain: {domain_description}
+        user_template="""Document domain: {domain_description}
 
 User query: {query}
 
 Classification:""",
-    output_schema=None
-))
+        output_schema=None,
+    )
+)
 
-PromptRegistry.register(PromptTemplate(
-    name="query_variants",
-    version="query_variants_v1",
-    system="""You are a query expansion assistant. Generate alternative phrasings of a question to improve document retrieval.
+PromptRegistry.register(
+    PromptTemplate(
+        name="query_variants",
+        version="query_variants_v1",
+        system="""You are a query expansion assistant. Generate alternative phrasings of a question to improve document retrieval.
 
 Rules:
 1. Generate exactly 3 alternative phrasings
@@ -151,11 +164,7 @@ Rules:
 4. Output as JSON array of strings
 
 Output format: ["variant 1", "variant 2", "variant 3"]""",
-    user_template="Original query: {query}\n\nAlternative phrasings (JSON array):",
-    output_schema={
-        "type": "array",
-        "items": {"type": "string"},
-        "minItems": 3,
-        "maxItems": 3
-    }
-))
+        user_template="Original query: {query}\n\nAlternative phrasings (JSON array):",
+        output_schema={"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 3},
+    )
+)

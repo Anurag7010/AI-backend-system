@@ -7,11 +7,12 @@ Verifies:
 1. Both pipelines return non-empty answers
 2. Logs differences for documentation
 """
+
 import asyncio
 import sys
 
-from rag.rag_interface import retrieve as rag_retrieve
 from pipelines.lcel_qa_pipeline import run_lcel_qa
+from rag.rag_interface import retrieve as rag_retrieve
 
 TEST_QUESTIONS = [
     "What is the main topic of the ingested documents?",
@@ -52,12 +53,14 @@ async def compare_pipelines() -> bool:
         lcel_ok = len(lcel_answer) > 10
         print(f"Manual non-empty: {manual_ok} | LCEL non-empty: {lcel_ok}")
 
-        results.append({
-            "question": question,
-            "manual_answer_length": len(manual_answer),
-            "lcel_answer_length": len(lcel_answer),
-            "both_non_empty": manual_ok and lcel_ok,
-        })
+        results.append(
+            {
+                "question": question,
+                "manual_answer_length": len(manual_answer),
+                "lcel_answer_length": len(lcel_answer),
+                "both_non_empty": manual_ok and lcel_ok,
+            }
+        )
 
     print("\n" + "=" * 50)
     print("COMPARISON SUMMARY")

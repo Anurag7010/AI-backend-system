@@ -8,9 +8,10 @@ Retryable errors: rate limits (429), server errors (500/502/503/504), timeouts.
 Non-retryable errors: auth (401), bad request (400), context too long (400).
 """
 
-import time
 import functools
+import time
 from typing import Callable, Type
+
 from observability.logger import get_logger
 
 logger = get_logger(__name__)
@@ -39,6 +40,7 @@ def with_retry(
         @with_retry(max_attempts=3, base_delay=1.0)
         def call_api(...): ...
     """
+
     def decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
@@ -80,5 +82,5 @@ def with_retry(
             raise last_exception  # type: ignore
 
         return wrapper
-    return decorator
 
+    return decorator

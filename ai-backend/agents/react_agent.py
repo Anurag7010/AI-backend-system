@@ -2,15 +2,18 @@
 import json
 from dataclasses import dataclass, field
 from typing import Optional
+
 from openai import AsyncOpenAI
+
+from agents.tools.base import ToolRegistry
 from core.config import config as Config
 from observability.logger import log_pipeline_event
-from agents.tools.base import ToolRegistry
 
 
 @dataclass
 class AgentStep:
     """Represents one step in the agent's reasoning trace."""
+
     step_number: int
     thought: Optional[str]
     action: Optional[str]
@@ -23,6 +26,7 @@ class AgentStep:
 @dataclass
 class AgentResult:
     """Final result of an agent run."""
+
     success: bool
     answer: str
     steps: list[AgentStep]
@@ -53,12 +57,7 @@ Rules:
 - Be concise and direct in your final answer
 - Cite document sources when answering from document content"""
 
-    def __init__(
-        self,
-        tool_registry: ToolRegistry,
-        max_iterations: int = 8,
-        model: str = None
-    ):
+    def __init__(self, tool_registry: ToolRegistry, max_iterations: int = 8, model: str = None):
         """Initialize with a tool registry and optional model override."""
         self.tools = tool_registry
         self.max_iterations = max_iterations
@@ -80,14 +79,14 @@ Rules:
         Injects user_memories into the system prompt when provided.
         """
         # Inject user_id into tools that need it
-        for tool_name in ['get_document_list', 'get_document_metadata']:
+        for tool_name in ["get_document_list", "get_document_metadata"]:
             tool = self.tools.get(tool_name)
             if tool:
                 tool.user_id = user_id
 
         system_prompt = self.SYSTEM_PROMPT
         if user_memories:
-            facts = '\n'.join(f"- {f}" for f in user_memories)
+            facts = "\n".join(f"- {f}" for f in user_memories)
             system_prompt += f"\n\nWhat you know about this user:\n{facts}"
         messages: list[dict] = [{"role": "system", "content": system_prompt}]
 
@@ -98,10 +97,11 @@ Rules:
 
         steps: list[AgentStep] = []
 
-        log_pipeline_event(event='agent_start', trace_id=trace_id, metadata={
-            'query_preview': query[:50],
-            'max_iterations': self.max_iterations
-        })
+        log_pipeline_event(
+            event="agent_start",
+            trace_id=trace_id,
+            metadata={"query_preview": query[:50], "max_iterations": self.max_iterations},
+        )
 
         for iteration in range(1, self.max_iterations + 1):
             step = AgentStep(
@@ -109,14 +109,14 @@ Rules:
                 thought=None,
                 action=None,
                 action_input=None,
-                observation=None
+                observation=None,
             )
 
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 tools=self.tools.all_schemas(),
-                tool_choice="auto"
+                tool_choice="auto",
             )
 
             message = response.choices[0].message
@@ -132,28 +132,34 @@ Rules:
                 step.action = tool_name
                 step.action_input = tool_input
 
-                log_pipeline_event(event='agent_tool_call', trace_id=trace_id, metadata={
-                    'step': iteration,
-                    'tool': tool_name,
-                    'input_preview': str(tool_input)[:100]
-                })
+                log_pipeline_event(
+                    event="agent_tool_call",
+                    trace_id=trace_id,
+                    metadata={
+                        "step": iteration,
+                        "tool": tool_name,
+                        "input_preview": str(tool_input)[:100],
+                    },
+                )
 
                 result = await self.tools.execute(tool_name, tool_input)
                 observation = result.to_observation()
                 step.observation = observation
 
-                log_pipeline_event(event='agent_observation', trace_id=trace_id, metadata={
-                    'step': iteration,
-                    'tool': tool_name,
-                    'success': result.success,
-                    'output_preview': observation[:100]
-                })
+                log_pipeline_event(
+                    event="agent_observation",
+                    trace_id=trace_id,
+                    metadata={
+                        "step": iteration,
+                        "tool": tool_name,
+                        "success": result.success,
+                        "output_preview": observation[:100],
+                    },
+                )
 
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": observation
-                })
+                messages.append(
+                    {"role": "tool", "tool_call_id": tool_call.id, "content": observation}
+                )
 
                 steps.append(step)
                 continue
@@ -163,30 +169,34 @@ Rules:
                 step.final_answer = message.content
                 steps.append(step)
 
-                log_pipeline_event(event='agent_complete', trace_id=trace_id, metadata={
-                    'steps': iteration,
-                    'stopped_reason': 'final_answer'
-                })
+                log_pipeline_event(
+                    event="agent_complete",
+                    trace_id=trace_id,
+                    metadata={"steps": iteration, "stopped_reason": "final_answer"},
+                )
 
                 return AgentResult(
                     success=True,
                     answer=message.content,
                     steps=steps,
                     total_steps=iteration,
-                    stopped_reason='final_answer',
-                    trace_id=trace_id
+                    stopped_reason="final_answer",
+                    trace_id=trace_id,
                 )
 
-        log_pipeline_event(event='agent_max_iterations', trace_id=trace_id, metadata={'steps': self.max_iterations})
+        log_pipeline_event(
+            event="agent_max_iterations", trace_id=trace_id, metadata={"steps": self.max_iterations}
+        )
 
-        messages.append({
-            "role": "user",
-            "content": "Based on what you have found so far, please provide your best answer."
-        })
+        messages.append(
+            {
+                "role": "user",
+                "content": "Based on what you have found so far, please provide your best answer.",
+            }
+        )
 
         final_response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages
+            model=self.model, messages=messages
         )
 
         final_answer = (
@@ -199,6 +209,6 @@ Rules:
             answer=final_answer,
             steps=steps,
             total_steps=self.max_iterations,
-            stopped_reason='max_iterations',
-            trace_id=trace_id
+            stopped_reason="max_iterations",
+            trace_id=trace_id,
         )

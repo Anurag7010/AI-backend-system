@@ -1,9 +1,11 @@
 # ai-backend/agents/tools/base.py
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Optional
+
 from pydantic import BaseModel, ValidationError
-import json
+
 
 @dataclass
 class ToolResult:
@@ -20,11 +22,12 @@ class ToolResult:
             return str(self.output)
         return f"Tool error: {self.error}"
 
+
 class BaseTool(ABC):
     """Base class for all agent tools."""
+
     name: str
     description: str
-
 
     class InputSchema(BaseModel):
         pass
@@ -38,17 +41,14 @@ class BaseTool(ABC):
                 success=False,
                 output=None,
                 error=f"Invalid input: {e.errors()}",
-                tool_name=self.name
+                tool_name=self.name,
             )
         try:
             output = await self._execute(validated)
             return ToolResult(success=True, output=output, error=None, tool_name=self.name)
         except Exception as e:
             return ToolResult(
-                success=False,
-                output=None,
-                error=f"Execution failed: {str(e)}",
-                tool_name=self.name
+                success=False, output=None, error=f"Execution failed: {str(e)}", tool_name=self.name
             )
 
     @abstractmethod
@@ -61,12 +61,9 @@ class BaseTool(ABC):
         schema = self.InputSchema.model_json_schema()
         return {
             "type": "function",
-            "function": {
-                "name": self.name,
-                "description": self.description,
-                "parameters": schema
-            }
+            "function": {"name": self.name, "description": self.description, "parameters": schema},
         }
+
 
 class ToolRegistry:
     """Maps tool names to tool instances."""
@@ -98,6 +95,6 @@ class ToolRegistry:
                 success=False,
                 output=None,
                 error=f"Unknown tool: '{tool_name}'. Available tools: {self.names()}",
-                tool_name=tool_name
+                tool_name=tool_name,
             )
         return await tool.execute(tool_input)

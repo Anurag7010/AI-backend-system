@@ -9,20 +9,16 @@ Exposes three tools:
   - calculate: safe AST-based math expression evaluator
   - get_document_list: returns an auth notice (user context not available via MCP)
 """
+
 import asyncio
 import json
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import (
-    Tool,
-    TextContent,
-    CallToolResult,
-    ListToolsResult,
-)
+from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 
-from rag.rag_interface import retrieve as rag_retrieve
 from agents.tools.implementations import CalculateTool
+from rag.rag_interface import retrieve as rag_retrieve
 
 _server = Server("ai-product-tools")
 _calculate_tool = CalculateTool()
@@ -103,10 +99,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return [TextContent(type="text", text=result.to_observation())]
 
         elif name == "get_document_list":
-            return [TextContent(
-                type="text",
-                text="Document listing requires authentication. Use the web interface at http://localhost:3000/documents",
-            )]
+            return [
+                TextContent(
+                    type="text",
+                    text="Document listing requires authentication. Use the web interface at http://localhost:3000/documents",
+                )
+            ]
 
         else:
             raise ValueError(f"Unknown tool: {name}")

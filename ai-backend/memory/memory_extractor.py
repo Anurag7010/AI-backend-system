@@ -31,10 +31,7 @@ If no extractable facts found, output an empty array: []
 Example output: ["User works in finance", "User prefers Python over JavaScript", "User's company uses AWS"]"""
 
 
-async def extract_memories(
-    conversation_messages: list[dict],
-    trace_id: str = None
-) -> list[str]:
+async def extract_memories(conversation_messages: list[dict], trace_id: str = None) -> list[str]:
     """
     Extract memorable facts from a conversation.
 
@@ -47,10 +44,10 @@ async def extract_memories(
     if len(conversation_messages) < 2:
         return []
 
-    formatted = '\n'.join(
+    formatted = "\n".join(
         f"{m['role'].upper()}: {m['content']}"
         for m in conversation_messages
-        if m['role'] in ('user', 'assistant')
+        if m["role"] in ("user", "assistant")
     )
 
     # complete() is synchronous — run in thread to avoid blocking the event loop
@@ -63,26 +60,34 @@ async def extract_memories(
         trace_id=trace_id,
     )
 
-    if result.get('error'):
-        log_pipeline_event(event='memory_extraction_llm_error', trace_id=trace_id, metadata={'error': result.get('error')})
+    if result.get("error"):
+        log_pipeline_event(
+            event="memory_extraction_llm_error",
+            trace_id=trace_id,
+            metadata={"error": result.get("error")},
+        )
         return []
 
-    raw_output = result.get('text', '[]')
-    validation = validate_json_output(raw_output, schema={
-        "type": "array",
-        "items": {"type": "string"}
-    })
+    raw_output = result.get("text", "[]")
+    validation = validate_json_output(
+        raw_output, schema={"type": "array", "items": {"type": "string"}}
+    )
 
     if not validation.valid:
-        log_pipeline_event(event='memory_extraction_failed', trace_id=trace_id, metadata={'error': validation.error})
+        log_pipeline_event(
+            event="memory_extraction_failed",
+            trace_id=trace_id,
+            metadata={"error": validation.error},
+        )
         return []
 
     facts = validation.data or []
     facts = [f.strip() for f in facts if len(f.strip()) > 10]
 
-    log_pipeline_event(event='memory_extracted', trace_id=trace_id, metadata={
-        'count': len(facts),
-        'facts_preview': [f[:40] for f in facts[:3]]
-    })
+    log_pipeline_event(
+        event="memory_extracted",
+        trace_id=trace_id,
+        metadata={"count": len(facts), "facts_preview": [f[:40] for f in facts[:3]]},
+    )
 
     return facts

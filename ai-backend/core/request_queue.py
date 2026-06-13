@@ -37,7 +37,9 @@ class RequestQueue:
         self._queued += 1
         queue_depth = self._queued
 
-        log_pipeline_event(event='request_queued', trace_id=trace_id or '', metadata={'queue_depth': queue_depth})
+        log_pipeline_event(
+            event="request_queued", trace_id=trace_id or "", metadata={"queue_depth": queue_depth}
+        )
 
         try:
             await asyncio.wait_for(
@@ -48,21 +50,25 @@ class RequestQueue:
             self._queued -= 1
             self._total_timeouts += 1
             log_pipeline_event(
-                event='request_queue_timeout',
-                trace_id=trace_id or '',
+                event="request_queue_timeout",
+                trace_id=trace_id or "",
                 metadata={
-                    'queue_depth': queue_depth,
-                    'timeout_seconds': self.QUEUE_TIMEOUT,
+                    "queue_depth": queue_depth,
+                    "timeout_seconds": self.QUEUE_TIMEOUT,
                 },
             )
             raise TimeoutError(
-                f'Request waited {self.QUEUE_TIMEOUT}s in queue. '
-                'Server is busy — please try again shortly.'
+                f"Request waited {self.QUEUE_TIMEOUT}s in queue. "
+                "Server is busy — please try again shortly."
             )
 
         self._queued -= 1
         try:
-            log_pipeline_event(event='request_dequeued', trace_id=trace_id or '', metadata={'queue_depth': self._queued})
+            log_pipeline_event(
+                event="request_dequeued",
+                trace_id=trace_id or "",
+                metadata={"queue_depth": self._queued},
+            )
             result = await fn(*args, **kwargs)
             self._total_processed += 1
             return result
@@ -73,12 +79,12 @@ class RequestQueue:
     def stats(self) -> dict:
         """Return current queue stats for health monitoring."""
         return {
-            'max_concurrent': self.MAX_CONCURRENT,
-            'currently_queued': self._queued,
-            'available_slots': self._semaphore._value,
-            'total_processed': self._total_processed,
-            'total_timeouts': self._total_timeouts,
-            'queue_timeout_seconds': self.QUEUE_TIMEOUT,
+            "max_concurrent": self.MAX_CONCURRENT,
+            "currently_queued": self._queued,
+            "available_slots": self._semaphore._value,
+            "total_processed": self._total_processed,
+            "total_timeouts": self._total_timeouts,
+            "queue_timeout_seconds": self.QUEUE_TIMEOUT,
         }
 
 

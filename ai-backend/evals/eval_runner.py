@@ -10,6 +10,7 @@ Public functions:
     run_llm_judge_eval(...)      → dict (LLM-as-judge report with regression detection)
     run_eval_cli()               → None (CLI entry point, exits 1 on failure)
 """
+
 import asyncio
 import json
 import sys
@@ -29,9 +30,10 @@ EVAL_RESULTS_DIR = Path("evals/results")
 @dataclass
 class TestCase:
     """Single evaluation case for the RAG pipeline."""
-    query:            str
+
+    query: str
     expected_keywords: list[str] = field(default_factory=list)
-    expected_sources:  list[str] = field(default_factory=list)
+    expected_sources: list[str] = field(default_factory=list)
 
 
 async def evaluate(test_case: TestCase) -> dict:
@@ -46,33 +48,27 @@ async def evaluate(test_case: TestCase) -> dict:
 
     result = await ask(test_case.query)
     answer = result.get("answer", "")
-    error  = result.get("error")
+    error = result.get("error")
     sources = result.get("sources", [])
 
-    retrieval_quality  = result.get("retrieval_quality", {})
+    retrieval_quality = result.get("retrieval_quality", {})
     guardrail_rejected = result.get("guardrail_rejected", False)
-    no_results         = result.get("no_results", False)
-    prompt_version     = result.get("prompt_version", "unknown")
+    no_results = result.get("no_results", False)
+    prompt_version = result.get("prompt_version", "unknown")
 
     has_answer = bool(answer and not error)
 
     # Keyword score: fraction of expected keywords found in answer (case-insensitive)
     if test_case.expected_keywords:
         answer_lower = answer.lower()
-        matched = sum(
-            1 for kw in test_case.expected_keywords
-            if kw.lower() in answer_lower
-        )
+        matched = sum(1 for kw in test_case.expected_keywords if kw.lower() in answer_lower)
         keyword_score = matched / len(test_case.expected_keywords)
     else:
         keyword_score = 1.0  # no keywords specified → full score by default
 
     # Source match: at least one expected source appears in returned sources
     if test_case.expected_sources:
-        source_match = any(
-            expected in " ".join(sources)
-            for expected in test_case.expected_sources
-        )
+        source_match = any(expected in " ".join(sources) for expected in test_case.expected_sources)
     else:
         source_match = True  # no sources specified → pass by default
 
@@ -83,17 +79,17 @@ async def evaluate(test_case: TestCase) -> dict:
         f"keyword_score={keyword_score:.2f} passed={passed}"
     )
     return {
-        "query":              test_case.query,
-        "answer":             answer[:300] if answer else "",
-        "keyword_score":      round(keyword_score, 3),
-        "source_match":       source_match,
-        "has_answer":         has_answer,
-        "passed":             passed,
-        "error":              error,
-        "retrieval_quality":  retrieval_quality,
+        "query": test_case.query,
+        "answer": answer[:300] if answer else "",
+        "keyword_score": round(keyword_score, 3),
+        "source_match": source_match,
+        "has_answer": has_answer,
+        "passed": passed,
+        "error": error,
+        "retrieval_quality": retrieval_quality,
         "guardrail_rejected": guardrail_rejected,
-        "no_results":         no_results,
-        "prompt_version":     prompt_version,
+        "no_results": no_results,
+        "prompt_version": prompt_version,
     }
 
 
@@ -109,18 +105,20 @@ async def run_all(test_cases: list[TestCase]) -> dict:
     for tc in test_cases:
         results.append(await evaluate(tc))
         await asyncio.sleep(5)
-    total   = len(results)
-    passed  = sum(1 for r in results if r["passed"])
+    total = len(results)
+    passed = sum(1 for r in results if r["passed"])
 
-    avg_retrieval_quality = round(
-        sum(r.get("retrieval_quality", {}).get("max_score", 0.0) for r in results) / total, 3
-    ) if total else 0.0
-    guardrail_rejection_rate = round(
-        sum(1 for r in results if r.get("guardrail_rejected")) / total, 3
-    ) if total else 0.0
-    no_result_rate = round(
-        sum(1 for r in results if r.get("no_results")) / total, 3
-    ) if total else 0.0
+    avg_retrieval_quality = (
+        round(sum(r.get("retrieval_quality", {}).get("max_score", 0.0) for r in results) / total, 3)
+        if total
+        else 0.0
+    )
+    guardrail_rejection_rate = (
+        round(sum(1 for r in results if r.get("guardrail_rejected")) / total, 3) if total else 0.0
+    )
+    no_result_rate = (
+        round(sum(1 for r in results if r.get("no_results")) / total, 3) if total else 0.0
+    )
     prompt_versions = list({r.get("prompt_version", "unknown") for r in results})
 
     # ── Summary table ─────────────────────────────────────────────────────────
@@ -131,7 +129,7 @@ async def run_all(test_cases: list[TestCase]) -> dict:
     print(f"  {'#':<3}  {'PASS':<5}  {'KW':>5}  {'SRC':<5}  QUERY")
     print("-" * 72)
     for i, r in enumerate(results, 1):
-        status   = "✓" if r["passed"] else "✗"
+        status = "✓" if r["passed"] else "✗"
         src_flag = "✓" if r["source_match"] else "✗"
         query_preview = r["query"][:45]
         print(f"  {i:<3}  {status:<5}  {r['keyword_score']:>5.2f}  {src_flag:<5}  {query_preview}")
@@ -143,18 +141,19 @@ async def run_all(test_cases: list[TestCase]) -> dict:
     print("=" * 72 + "\n")
 
     return {
-        "results":                  results,
-        "total":                    total,
-        "passed":                   passed,
-        "pass_rate":                round(passed / total, 3) if total else 0.0,
-        "avg_retrieval_quality":    avg_retrieval_quality,
+        "results": results,
+        "total": total,
+        "passed": passed,
+        "pass_rate": round(passed / total, 3) if total else 0.0,
+        "avg_retrieval_quality": avg_retrieval_quality,
         "guardrail_rejection_rate": guardrail_rejection_rate,
-        "no_result_rate":           no_result_rate,
-        "prompt_versions":          prompt_versions,
+        "no_result_rate": no_result_rate,
+        "prompt_versions": prompt_versions,
     }
 
 
 # ── LLM-as-judge eval pipeline ────────────────────────────────────────────────
+
 
 async def run_llm_judge_eval(
     dataset_path: str = "evals/eval_dataset.json",
@@ -177,7 +176,7 @@ async def run_llm_judge_eval(
     with open(dataset_path) as f:
         dataset = json.load(f)
 
-    questions = dataset['questions']
+    questions = dataset["questions"]
     print(f"\nRunning LLM-as-judge eval on {len(questions)} questions...")
     print(f"Passing threshold: {PASSING_THRESHOLD}")
     print("-" * 60)
@@ -186,29 +185,28 @@ async def run_llm_judge_eval(
     category_scores: dict[str, list[float]] = {}
 
     for i, q in enumerate(questions, 1):
-        question_id = q['id']
-        category = q['category']
+        question_id = q["id"]
+        category = q["category"]
         print(f"[{i}/{len(questions)}] {question_id}: {q['question'][:50]}...")
 
         try:
             rag_result = await rag_ask(
-                query=q['question'],
+                query=q["question"],
                 trace_id=f"{trace_id or 'eval'}-{question_id}",
             )
 
-            ai_answer = rag_result.get('answer', '')
-            sources = rag_result.get('sources', [])
+            ai_answer = rag_result.get("answer", "")
+            sources = rag_result.get("sources", [])
             context = "\n\n".join(
-                f"[Source {j + 1}] {s.get('content', '')}"
-                for j, s in enumerate(sources[:3])
+                f"[Source {j + 1}] {s.get('content', '')}" for j, s in enumerate(sources[:3])
             )
 
-            guardrail_rejected = rag_result.get('guardrail_rejected', False)
-            no_results = rag_result.get('no_results', False)
+            guardrail_rejected = rag_result.get("guardrail_rejected", False)
+            no_results = rag_result.get("no_results", False)
 
             score = await judge_answer(
-                question=q['question'],
-                ground_truth=q['ground_truth'],
+                question=q["question"],
+                ground_truth=q["ground_truth"],
                 ai_answer=ai_answer,
                 context=context,
                 question_id=question_id,
@@ -222,8 +220,8 @@ async def run_llm_judge_eval(
             result = {
                 "id": question_id,
                 "category": category,
-                "question": q['question'],
-                "ground_truth": q['ground_truth'],
+                "question": q["question"],
+                "ground_truth": q["ground_truth"],
                 "ai_answer": ai_answer,
                 "scores": {
                     "faithfulness": score.faithfulness,
@@ -239,7 +237,7 @@ async def run_llm_judge_eval(
                 "passed": passed,
                 "guardrail_rejected": guardrail_rejected,
                 "no_results": no_results,
-                "expected_behavior": q.get('expected_behavior'),
+                "expected_behavior": q.get("expected_behavior"),
             }
             results.append(result)
 
@@ -252,37 +250,53 @@ async def run_llm_judge_eval(
 
         except Exception as e:
             print(f"  ✗ ERROR: {e}")
-            results.append({
-                "id": question_id,
-                "category": category,
-                "question": q['question'],
-                "error": str(e),
-                "passed": False,
-            })
+            results.append(
+                {
+                    "id": question_id,
+                    "category": category,
+                    "question": q["question"],
+                    "error": str(e),
+                    "passed": False,
+                }
+            )
 
-    scored_results = [r for r in results if 'scores' in r]
-    all_composites = [r['scores']['composite'] for r in scored_results]
-    passed_count = sum(1 for r in results if r.get('passed'))
+    scored_results = [r for r in results if "scores" in r]
+    all_composites = [r["scores"]["composite"] for r in scored_results]
+    passed_count = sum(1 for r in results if r.get("passed"))
 
     summary = {
         "run_date": datetime.utcnow().isoformat(),
-        "dataset_version": dataset['version'],
+        "dataset_version": dataset["version"],
         "total_questions": len(questions),
         "passed": passed_count,
         "failed": len(questions) - passed_count,
         "pass_rate": round(passed_count / len(questions), 3),
-        "avg_composite": round(sum(all_composites) / len(all_composites), 3) if all_composites else 0.0,
-        "avg_faithfulness": round(sum(r['scores']['faithfulness'] for r in scored_results) / len(scored_results), 3) if scored_results else 0.0,
-        "avg_relevance": round(sum(r['scores']['relevance'] for r in scored_results) / len(scored_results), 3) if scored_results else 0.0,
-        "avg_completeness": round(sum(r['scores']['completeness'] for r in scored_results) / len(scored_results), 3) if scored_results else 0.0,
+        "avg_composite": (
+            round(sum(all_composites) / len(all_composites), 3) if all_composites else 0.0
+        ),
+        "avg_faithfulness": (
+            round(sum(r["scores"]["faithfulness"] for r in scored_results) / len(scored_results), 3)
+            if scored_results
+            else 0.0
+        ),
+        "avg_relevance": (
+            round(sum(r["scores"]["relevance"] for r in scored_results) / len(scored_results), 3)
+            if scored_results
+            else 0.0
+        ),
+        "avg_completeness": (
+            round(sum(r["scores"]["completeness"] for r in scored_results) / len(scored_results), 3)
+            if scored_results
+            else 0.0
+        ),
         "category_scores": {
-            cat: round(sum(scores) / len(scores), 3)
-            for cat, scores in category_scores.items()
+            cat: round(sum(scores) / len(scores), 3) for cat, scores in category_scores.items()
         },
         "passing_threshold": PASSING_THRESHOLD,
         "overall_passed": (
             (sum(all_composites) / len(all_composites)) >= PASSING_THRESHOLD
-            if all_composites else False
+            if all_composites
+            else False
         ),
     }
 
@@ -290,7 +304,7 @@ async def run_llm_judge_eval(
 
     EVAL_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     result_file = EVAL_RESULTS_DIR / f"eval_{datetime.utcnow().strftime('%Y-%m-%d_%H-%M')}.json"
-    with open(result_file, 'w') as f:
+    with open(result_file, "w") as f:
         json.dump(report, f, indent=2)
 
     _check_regression(summary, result_file)
@@ -304,7 +318,7 @@ async def run_llm_judge_eval(
     print(f"Avg relevance:    {summary['avg_relevance']:.3f}")
     print(f"Avg completeness: {summary['avg_completeness']:.3f}")
     print(f"\nCategory breakdown:")
-    for cat, score in summary['category_scores'].items():
+    for cat, score in summary["category_scores"].items():
         print(f"  {cat}: {score:.3f}")
     print(f"\nResults saved to: {result_file}")
     print(f"Overall: {'✓ PASSED' if summary['overall_passed'] else '✗ FAILED'}")
@@ -322,8 +336,8 @@ def _check_regression(current_summary: dict, current_file: Path) -> None:
     try:
         with open(previous_file) as f:
             previous_report = json.load(f)
-        previous_composite = previous_report['summary']['avg_composite']
-        current_composite = current_summary['avg_composite']
+        previous_composite = previous_report["summary"]["avg_composite"]
+        current_composite = current_summary["avg_composite"]
         drop = previous_composite - current_composite
         if drop > REGRESSION_THRESHOLD:
             print(
@@ -339,7 +353,7 @@ def _check_regression(current_summary: dict, current_file: Path) -> None:
 async def run_eval_cli() -> None:
     """CLI entry point for running LLM-as-judge evals. Exits 1 on failure."""
     report = await run_llm_judge_eval()
-    if not report['summary']['overall_passed']:
+    if not report["summary"]["overall_passed"]:
         sys.exit(1)
 
 

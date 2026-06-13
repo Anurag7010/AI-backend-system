@@ -5,11 +5,12 @@ LRU caches with TTL support for retrieval and LLM response caching.
 Module-level singletons: retrieval_cache and llm_cache.
 """
 
-import time
 import hashlib
 import json
+import time
 from collections import OrderedDict
 from typing import Any, Optional
+
 from observability.logger import log_pipeline_event
 
 

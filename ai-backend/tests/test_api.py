@@ -25,10 +25,15 @@ HEADERS = {"X-API-Key": TEST_API_KEY, "X-Request-ID": "test-trace-001"}
 # Reusable mock RAG responses
 MOCK_ASK_RESULT = {
     "answer": "This is a test answer",
-    "sources": ["test.pdf"],
+    "sources": [
+        {"content": "test source content", "score": 0.95, "metadata": {"source": "test.pdf", "chunk_index": 0}, "citation_id": None}
+    ],
     "trace_id": "test-trace-001",
     "latency_breakdown": {"retrieval_ms": 100.0, "generation_ms": 200.0, "total_ms": 300.0},
     "error": None,
+    "guardrail_rejected": False,
+    "no_results": False,
+    "retrieval_quality": {"quality": "good", "max_score": 0.95, "avg_score": 0.95, "chunk_count": 1},
 }
 
 MOCK_RETRIEVE_CHUNKS = [
@@ -83,17 +88,16 @@ class TestAsk:
 
     async def test_successful_ask_returns_200(self):
         """A valid ask returns 200 with the AskResponse shape."""
-        with patch("api.routes.rag_ask" if hasattr(__import__("api.routes", fromlist=["rag_ask"]), "rag_ask") else "rag.rag_interface.ask", MOCK_ASK_RESULT), \
-             patch("rag.rag_interface.ask", return_value=MOCK_ASK_RESULT), \
-             patch("rag.rag_interface.retrieve", return_value=MOCK_RETRIEVE_CHUNKS):
+        with patch("rag.rag_interface.ask", new_callable=AsyncMock, return_value=MOCK_ASK_RESULT), \
+             patch("rag.rag_interface.retrieve", new_callable=AsyncMock, return_value=MOCK_RETRIEVE_CHUNKS):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
                 res = await client.post("/ask", json={"query": "What is this?"}, headers=HEADERS)
         assert res.status_code == 200
 
     async def test_answer_field_is_present(self):
         """Response must include a non-empty answer field."""
-        with patch("rag.rag_interface.ask", return_value=MOCK_ASK_RESULT), \
-             patch("rag.rag_interface.retrieve", return_value=MOCK_RETRIEVE_CHUNKS):
+        with patch("rag.rag_interface.ask", new_callable=AsyncMock, return_value=MOCK_ASK_RESULT), \
+             patch("rag.rag_interface.retrieve", new_callable=AsyncMock, return_value=MOCK_RETRIEVE_CHUNKS):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
                 res = await client.post("/ask", json={"query": "What is this?"}, headers=HEADERS)
         body = res.json()
@@ -103,8 +107,8 @@ class TestAsk:
 
     async def test_sources_field_is_list(self):
         """Sources must be a list — empty is valid if no chunks matched."""
-        with patch("rag.rag_interface.ask", return_value=MOCK_ASK_RESULT), \
-             patch("rag.rag_interface.retrieve", return_value=MOCK_RETRIEVE_CHUNKS):
+        with patch("rag.rag_interface.ask", new_callable=AsyncMock, return_value=MOCK_ASK_RESULT), \
+             patch("rag.rag_interface.retrieve", new_callable=AsyncMock, return_value=MOCK_RETRIEVE_CHUNKS):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
                 res = await client.post("/ask", json={"query": "What is this?"}, headers=HEADERS)
         body = res.json()
