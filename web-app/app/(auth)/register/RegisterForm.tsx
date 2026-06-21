@@ -261,6 +261,7 @@ export function RegisterForm() {
           src="/prometheon-feature-card.jpeg"
           alt=""
           fill
+          sizes="(max-width: 768px) 100vw, 50vw"
           className="object-cover"
         />
         {/* Right-edge blend */}

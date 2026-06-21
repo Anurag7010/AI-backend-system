@@ -1,8 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import Image from "next/image";
-import { motion, useInView } from "framer-motion";
+import { motion, useScroll, useTransform, useInView } from "framer-motion";
 
 const EASING: [number, number, number, number] = [0.86, 0, 0.31, 1];
 const TITLE_SHADOW =
@@ -17,15 +16,15 @@ interface SplitTextProps {
 
 function SplitText({ text, color, shadow = TITLE_SHADOW }: SplitTextProps) {
   const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: "0px" });
+  const inView = useInView(ref, { once: true, margin: "-60px" });
 
   return (
     <span ref={ref} style={{ overflow: "hidden", display: "block" }}>
       <motion.span
-        initial={{ y: "35%", opacity: 0 }}
-        animate={inView ? { y: "0%", opacity: 1 } : { y: "35%", opacity: 0 }}
+        initial={{ y: "55%", opacity: 0 }}
+        animate={inView ? { y: "0%", opacity: 1 } : { y: "55%", opacity: 0 }}
         transition={{
-          duration: 0.75,
+          duration: 1.1,
           ease: EASING,
         }}
         className="inline-block font-cormorant"
@@ -46,6 +45,12 @@ const TITLE_CSS: React.CSSProperties = {
 };
 
 export default function StringPoster() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+  const bgY = useTransform(scrollYProgress, [0, 1], ["0%", "8%"]);
 
   const words: Array<{
     text: string;
@@ -127,6 +132,7 @@ export default function StringPoster() {
 
   return (
     <section
+      ref={sectionRef}
       className="relative overflow-hidden"
       style={{ minHeight: "100vh", backgroundColor: "#171B1F" }}
     >
@@ -146,27 +152,34 @@ export default function StringPoster() {
         }}
       />
 
-      {/* Background */}
+      {/* Parallax background */}
       <div className="absolute inset-0 overflow-hidden">
-        <Image
-          src="/StringPosterBG.png"
-          alt=""
-          fill
-          className="object-cover object-center"
-        />
-        <div
+        <motion.div
           className="absolute inset-0"
           style={{
-            background:
-              "linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.42) 40%, rgba(0,0,0,0.72) 100%)",
+            y: bgY,
+            height: "120%",
+            top: "-10%",
+            willChange: "transform",
+            backgroundImage: "url('/StringPosterBG.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
           }}
-        />
+        >
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.42) 40%, rgba(0,0,0,0.72) 100%)",
+            }}
+          />
+        </motion.div>
       </div>
 
       {/* Poster grid */}
       <div
         className="relative z-[1] mx-4 md:mx-8 lg:mx-16"
-        style={{ marginTop: "calc(55vh)", marginBottom: "calc(3.815rem * 2)" }}
+        style={{ marginTop: "calc(70vh)", marginBottom: "calc(3.815rem * 2)" }}
       >
         {/* Quote — above the grid */}
         <motion.p

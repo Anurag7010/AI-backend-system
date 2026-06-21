@@ -418,6 +418,7 @@ function FeatureCard({
               src={FEAT_URL}
               alt={card.title}
               fill
+              sizes="(max-width: 1024px) 100vw, 50vw"
               className="object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
@@ -575,9 +576,9 @@ function InnovationSection() {
             initial={{ opacity: 0, y: 16 }}
             animate={inView ? { opacity: 1, y: 0 } : undefined}
             transition={{ duration: DURATION.slow, ease: EASE_CINEMATIC }}
-            className="rounded-3xl overflow-hidden aspect-[4/3]"
+            className="relative rounded-3xl overflow-hidden aspect-[4/3]"
           >
-            <Image src={ZEUS_URL} alt="Zeus demo" fill className="object-cover" />
+            <Image src={ZEUS_URL} alt="Zeus demo" fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" />
           </motion.div>
 
           {/* Right — text blocks */}
@@ -864,10 +865,18 @@ function CtaSection() {
 /* ─── MAIN LANDING PAGE ─── */
 export default function LandingPage() {
   return (
-    <main className="bg-ember-black min-h-screen">
+    <main className="relative bg-ember-black min-h-screen">
       <PageReveal />
       <Navbar />
       <HeroSection />
+      {/* Warm ember bloom bridging hero to StringPoster */}
+      <div
+        className="pointer-events-none absolute left-0 right-0 h-48 z-10"
+        style={{
+          top: 'calc(100vh - 4rem)',
+          background: 'radial-gradient(ellipse 60% 100% at 50% 0%, rgba(212,87,42,0.07) 0%, transparent 100%)',
+        }}
+      />
       <StringPoster />
       <AboutSection />
       <FeaturesSection />
