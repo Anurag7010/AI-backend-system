@@ -228,6 +228,7 @@ def _store_documents(documents: list, deps: dict) -> None:
         persist_directory=_PERSIST_DIR,
         collection_metadata={"hnsw:space": "cosine"},
     )
+    logger.info(f"[rag] Stored {len(documents)} docs in OpenAI vectorstore")
 
     # Free-tier collection — HuggingFace local embeddings (no API cost)
     try:
@@ -246,10 +247,9 @@ def _store_documents(documents: list, deps: dict) -> None:
         # Log but don't fail ingest — owner can still use OpenAI collection
         logger.warning(f"[rag] HuggingFace vectorstore ingest failed (non-fatal): {exc}")
 
-    # Invalidate both caches after write
+    # Invalidate both caches — only reached when OpenAI write succeeded
     _invalidate_vectorstore()
     _invalidate_vectorstore_hf()
-    logger.info(f"[rag] Stored {len(documents)} docs in OpenAI vectorstore")
 
 
 # ── Retrieval helpers ─────────────────────────────────────────────────────────
