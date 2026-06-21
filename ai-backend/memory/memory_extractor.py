@@ -5,11 +5,15 @@ LLM-based fact extraction from conversation exchanges.
 """
 
 import asyncio
+from typing import TYPE_CHECKING
 
 from core.config import config
 from core.llm_client import complete as llm_complete
 from core.output_validator import validate_json_output
 from observability.logger import log_pipeline_event
+
+if TYPE_CHECKING:
+    from core.user_tier import TierConfig
 
 EXTRACTION_PROMPT = """Analyze this conversation and extract factual statements about the USER (not the AI).
 
@@ -31,13 +35,18 @@ If no extractable facts found, output an empty array: []
 Example output: ["User works in finance", "User prefers Python over JavaScript", "User's company uses AWS"]"""
 
 
-async def extract_memories(conversation_messages: list[dict], trace_id: str = None) -> list[str]:
+async def extract_memories(
+    conversation_messages: list[dict], trace_id: str = None, tier_config: "TierConfig | None" = None
+) -> list[str]:
     """
     Extract memorable facts from a conversation.
+
+    Uses tier_config.fast_model when provided, else falls back to config.FAST_MODEL.
 
     Args:
         conversation_messages: list of {role, content}
         trace_id: for observability
+        tier_config: optional tier configuration for provider/model selection
     Returns:
         list of fact strings to store in long-term memory
     """
@@ -50,12 +59,20 @@ async def extract_memories(conversation_messages: list[dict], trace_id: str = No
         if m["role"] in ("user", "assistant")
     )
 
+    # Resolve model and provider from tier_config if available
+    model = config.FAST_MODEL
+    provider = "openai"
+    if tier_config is not None:
+        model = tier_config.fast_model
+        provider = tier_config.llm_provider
+
     # complete() is synchronous — run in thread to avoid blocking the event loop
     result = await asyncio.to_thread(
         llm_complete,
         f"Conversation to analyze:\n\n{formatted}\n\nExtracted facts (JSON array):",
         system_prompt=EXTRACTION_PROMPT,
-        model=config.FAST_MODEL,
+        model=model,
+        provider=provider,
         max_tokens=300,
         trace_id=trace_id,
     )
