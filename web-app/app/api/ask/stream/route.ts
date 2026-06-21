@@ -47,6 +47,8 @@ async function streamHandler(
       strategy: body.strategy,
       history: body.history,
       traceId: context.requestId,
+      userId,
+      userEmail: context.email,
     })
   } catch (err) {
     const serviceError = err instanceof BackendError ? mapBackendError(err) : mapBackendError(err)

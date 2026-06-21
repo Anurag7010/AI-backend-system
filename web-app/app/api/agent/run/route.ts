@@ -38,6 +38,7 @@ async function agentRunHandler(
   const result = await backendClient.runAgent(body.query, {
     history: body.history,
     userId: context.userId as string,
+    userEmail: context.email,
     traceId: context.requestId,
   })
 

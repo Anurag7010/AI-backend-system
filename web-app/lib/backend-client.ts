@@ -224,6 +224,7 @@ class BackendClient {
       history?: Array<{ role: string; content: string }>
       traceId?: string
       userId?: string
+      userEmail?: string
     } = {}
   ): Promise<AskResponse> {
     try {
@@ -237,6 +238,7 @@ class BackendClient {
         }),
         traceId: options.traceId,
         userId: options.userId,
+        userEmail: options.userEmail,
       })
       return toAskResponse(raw)
     } catch (error) {
@@ -260,6 +262,7 @@ class BackendClient {
       history?: Array<{ role: string; content: string }>
       traceId?: string
       userId?: string
+      userEmail?: string
     } = {}
   ): Promise<ReadableStream<Uint8Array>> {
     const url = `${this.baseUrl}/ask/stream`
@@ -269,6 +272,7 @@ class BackendClient {
     }
     if (options.traceId) headers['X-Request-ID'] = options.traceId
     if (options.userId) headers['X-User-ID'] = options.userId
+    if (options.userEmail) headers['X-User-Email'] = options.userEmail
 
     let response: Response
     try {
@@ -313,7 +317,8 @@ class BackendClient {
     filename: string,
     metadata: Record<string, unknown> = {},
     traceId?: string,
-    userId?: string
+    userId?: string,
+    userEmail?: string
   ): Promise<BackendIngestResult> {
     const formData = new FormData()
     formData.append('file', file, filename)
@@ -324,6 +329,7 @@ class BackendClient {
       formData,
       traceId,
       userId,
+      userEmail,
       timeoutMs: 300_000, // PDF ingestion can be slow on first run (model weight downloads)
     })
     return toIngestResult(raw)
@@ -336,6 +342,7 @@ class BackendClient {
       strategy?: string
       traceId?: string
       userId?: string
+      userEmail?: string
     } = {}
   ): Promise<RetrieveResponse> {
     const params = new URLSearchParams({
@@ -347,6 +354,7 @@ class BackendClient {
       method: 'GET',
       traceId: options.traceId,
       userId: options.userId,
+      userEmail: options.userEmail,
     })
     return toRetrieveResponse(raw)
   }
@@ -356,6 +364,7 @@ class BackendClient {
     options: {
       history?: Array<{ role: string; content: string }>
       userId?: string
+      userEmail?: string
       traceId?: string
     } = {}
   ): Promise<AgentRunResponse> {
@@ -367,6 +376,7 @@ class BackendClient {
       }),
       traceId: options.traceId,
       userId: options.userId,
+      userEmail: options.userEmail,
     })
     return toAgentRunResponse(raw)
   }
@@ -425,6 +435,7 @@ class BackendClient {
       traceId?: string
       timeoutMs?: number
       userId?: string
+      userEmail?: string
     }
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`
@@ -434,6 +445,7 @@ class BackendClient {
     if (options.traceId) headers['X-Request-ID'] = options.traceId
     if (options.body) headers['Content-Type'] = 'application/json'
     if (options.userId) headers['X-User-ID'] = options.userId
+    if (options.userEmail) headers['X-User-Email'] = options.userEmail
 
     const controller = new AbortController()
     const timeoutId = setTimeout(

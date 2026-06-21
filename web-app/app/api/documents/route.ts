@@ -77,7 +77,9 @@ async function createHandler(
       file,
       file.name,
       { documentId: document.id },
-      context.requestId
+      context.requestId,
+      userId,
+      context.email
     )
 
     const finalStatus = result.status === 'ok' ? 'ingested' : 'failed'

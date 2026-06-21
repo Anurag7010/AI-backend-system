@@ -82,6 +82,7 @@ async function createHandler(
       history: effectiveHistory,
       traceId: context.requestId,
       userId: userId,
+      userEmail: context.email,
     })
 
     // Persist answer and latency for query history (latencyMs is integer column — round float)
