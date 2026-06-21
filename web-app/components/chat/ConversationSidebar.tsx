@@ -29,6 +29,7 @@ export function ConversationSidebar({
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const submittingRef = useRef(false)
 
   const loadConversations = useCallback(async () => {
     try {
@@ -48,8 +49,11 @@ export function ConversationSidebar({
   }, [])
 
   async function commitRename(id: string) {
+    if (submittingRef.current) return  // guard against double-fire on blur after Enter
+    submittingRef.current = true
     const trimmed = renameValue.trim()
     setRenamingId(null)
+    submittingRef.current = false
     if (!trimmed) return
     const token = getAccessToken()
     await fetch(`/api/conversations/${id}`, {
@@ -60,7 +64,7 @@ export function ConversationSidebar({
       },
       body: JSON.stringify({ title: trimmed }),
     })
-    loadConversations()
+    setConversations(prev => prev.map(c => c.id === id ? { ...c, title: trimmed } : c))
   }
 
   useEffect(() => {

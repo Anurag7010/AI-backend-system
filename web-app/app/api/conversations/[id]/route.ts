@@ -56,5 +56,5 @@ const wrappedPatch = compose(
 
 export async function PATCH(req: NextRequest, { params }: RouteProps) {
   const resolvedParams = await params
-  return wrappedPatch(req, { requestId: '', startTime: 0, params: resolvedParams } as unknown as RequestContext)
+  return wrappedPatch(req, { requestId: '', startTime: 0, params: resolvedParams } as RequestContext)
 }

@@ -89,6 +89,7 @@ export function ChatInterface({ documentId: _documentId, documentName }: ChatInt
           role: m.role as Message['role'],
           content: m.content,
         }))
+        if (cancelled) return
         loadHistory(loaded)
       }
     }

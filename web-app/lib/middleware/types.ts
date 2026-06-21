@@ -8,6 +8,7 @@ export interface RequestContext {
   email?: string
   accessToken?: string
   parsedBody?: unknown
+  params?: Record<string, string>
 }
 
 export type RouteHandler = (
