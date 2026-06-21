@@ -9,10 +9,12 @@ Public API — three functions, no LangChain types leak out:
     ask(query, history, trace_id)         → {answer, sources, latency_breakdown, trace_id, error}
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.config import config
 from core.guardrails import check_query, sanitize_input, sanitize_output
@@ -21,14 +23,19 @@ from observability.logger import get_logger, log_pipeline_event, log_retrieval
 from observability.tracer import Tracer, new_trace_id
 from rag.context_manager import build_context
 
+if TYPE_CHECKING:
+    from core.user_tier import TierConfig
+
 logger = get_logger(__name__)
 
 # ── Constants pulled from config — no magic values here ──────────────────────
 _PERSIST_DIR = "external/rag_system/db/chroma_db"
+_PERSIST_DIR_HF = "external/rag_system/db/chroma_db_hf"
 _EMBED_MODEL = "text-embedding-3-small"
 
-# ── Vectorstore singleton ─────────────────────────────────────────────────────
+# ── Vectorstore singletons ────────────────────────────────────────────────────
 _vectorstore_cache: Any = None
+_vectorstore_hf_cache: Any = None
 
 
 def _get_deps() -> dict[str, Any]:
@@ -76,6 +83,37 @@ def _invalidate_vectorstore() -> None:
     """Force vectorstore reload on next access (call after ingestion)."""
     global _vectorstore_cache
     _vectorstore_cache = None
+
+
+def _get_vectorstore_hf(deps: dict) -> Any:
+    """Return cached HuggingFace vectorstore, opening from disk on first access."""
+    global _vectorstore_hf_cache
+    if _vectorstore_hf_cache is not None:
+        return _vectorstore_hf_cache
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+
+    embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    _vectorstore_hf_cache = deps["Chroma"](
+        persist_directory=_PERSIST_DIR_HF,
+        embedding_function=embedding_model,
+        collection_name="langchain_hf",
+        collection_metadata={"hnsw:space": "cosine"},
+    )
+    logger.info(f"[rag] Opened HuggingFace vectorstore at {_PERSIST_DIR_HF}")
+    return _vectorstore_hf_cache
+
+
+def _invalidate_vectorstore_hf() -> None:
+    """Force HuggingFace vectorstore reload on next access."""
+    global _vectorstore_hf_cache
+    _vectorstore_hf_cache = None
+
+
+def _get_vectorstore_for_tier(deps: dict, tier_config: Any = None) -> Any:
+    """Return the correct vectorstore for the user's tier."""
+    if tier_config is not None and not tier_config.is_owner:
+        return _get_vectorstore_hf(deps)
+    return _get_vectorstore(deps)
 
 
 # ── Ingestion helpers ─────────────────────────────────────────────────────────
@@ -181,15 +219,37 @@ def _summarise_chunks(chunks: list, metadata: dict, deps: dict) -> list:
 
 
 def _store_documents(documents: list, deps: dict) -> None:
-    """Persist LangChain Documents into ChromaDB."""
-    embedding_model = deps["OpenAIEmbeddings"](model=_EMBED_MODEL)
+    """Persist LangChain Documents into both ChromaDB collections (OpenAI + HuggingFace)."""
+    # Owner collection — OpenAI embeddings
+    embedding_model_openai = deps["OpenAIEmbeddings"](model=_EMBED_MODEL)
     deps["Chroma"].from_documents(
         documents=documents,
-        embedding=embedding_model,
+        embedding=embedding_model_openai,
         persist_directory=_PERSIST_DIR,
         collection_metadata={"hnsw:space": "cosine"},
     )
-    logger.info(f"[rag] Stored {len(documents)} docs in vectorstore")
+
+    # Free-tier collection — HuggingFace local embeddings (no API cost)
+    try:
+        from langchain_community.embeddings import HuggingFaceEmbeddings
+
+        embedding_model_hf = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        deps["Chroma"].from_documents(
+            documents=documents,
+            embedding=embedding_model_hf,
+            persist_directory=_PERSIST_DIR_HF,
+            collection_name="langchain_hf",
+            collection_metadata={"hnsw:space": "cosine"},
+        )
+        logger.info(f"[rag] Stored {len(documents)} docs in HuggingFace vectorstore")
+    except Exception as exc:
+        # Log but don't fail ingest — owner can still use OpenAI collection
+        logger.warning(f"[rag] HuggingFace vectorstore ingest failed (non-fatal): {exc}")
+
+    # Invalidate both caches after write
+    _invalidate_vectorstore()
+    _invalidate_vectorstore_hf()
+    logger.info(f"[rag] Stored {len(documents)} docs in OpenAI vectorstore")
 
 
 # ── Retrieval helpers ─────────────────────────────────────────────────────────
@@ -367,12 +427,15 @@ def compute_retrieval_quality(chunks: list[dict]) -> dict:
     }
 
 
-async def _generate_query_variants(query: str, trace_id: str = None) -> list[str]:
+async def _generate_query_variants(
+    query: str, trace_id: str = None, tier_config: Any = None
+) -> list[str]:
     """Generate 3 alternative phrasings of the query using the LLM. Falls back to [query] on failure."""
     result = await complete_with_fallback(
         prompt_name="query_variants",
         user_vars={"query": query},
         trace_id=trace_id,
+        tier_config=tier_config,
     )
     if result["success"] and isinstance(result["data"], list):
         variants = result["data"][:3]
@@ -380,10 +443,10 @@ async def _generate_query_variants(query: str, trace_id: str = None) -> list[str
     return [query]  # fallback: original only
 
 
-def _retrieve_single(query: str, top_k: int, strategy: str) -> list[dict]:
-    """Retrieve chunks for a single query using the given strategy."""
+def _retrieve_single(query: str, top_k: int, strategy: str, tier_config: Any = None) -> list[dict]:
+    """Retrieve chunks for a single query using the given strategy and tier-appropriate vectorstore."""
     deps = _get_deps()
-    vectorstore = _get_vectorstore(deps)
+    vectorstore = _get_vectorstore_for_tier(deps, tier_config)
     strategy_map = {
         "semantic": lambda: _retrieve_semantic(query, top_k, vectorstore),
         "hybrid": lambda: _retrieve_hybrid(query, top_k, vectorstore),
@@ -412,8 +475,7 @@ def ingest(file_path: str, metadata: dict | None = None) -> dict:
         elements = _partition_document(file_path, deps)
         chunks = _chunk_elements(elements, deps)
         documents = _summarise_chunks(chunks, metadata, deps)
-        _store_documents(documents, deps)
-        _invalidate_vectorstore()
+        _store_documents(documents, deps)  # invalidates both caches internally
         return {"status": "ok", "chunk_count": len(documents), "error": None}
     except Exception as exc:
         logger.error(f"[rag] ingest failed: {exc}")
@@ -426,6 +488,7 @@ async def retrieve(
     strategy: str = "",
     use_multi_query: bool = False,
     trace_id: str | None = None,
+    tier_config: Any = None,
 ) -> list[dict]:
     """
     Retrieve relevant document chunks for a query.
@@ -459,7 +522,7 @@ async def retrieve(
 
     try:
         if use_multi_query:
-            queries = await _generate_query_variants(query, trace_id)
+            queries = await _generate_query_variants(query, trace_id, tier_config)
         else:
             queries = [query]
 
@@ -467,7 +530,9 @@ async def retrieve(
         seen_ids: set[str] = set()
 
         for q in queries:
-            chunks = await asyncio.to_thread(_retrieve_single, q, resolved_top_k, resolved_strategy)
+            chunks = await asyncio.to_thread(
+                _retrieve_single, q, resolved_top_k, resolved_strategy, tier_config
+            )
             for chunk in chunks:
                 chunk_id = (
                     chunk.get("metadata", {}).get("chunk_id") or chunk.get("content", "")[:50]
@@ -496,6 +561,7 @@ async def ask(
     history: list[dict] | None = None,
     user_id: str | None = None,
     trace_id: str | None = None,
+    tier_config: Any = None,
 ) -> dict:
     """
     Full RAG pipeline: guardrail check → retrieve → filter → build context → generate answer.
@@ -568,7 +634,7 @@ async def ask(
 
         # Step 2: Retrieval with score-threshold filtering
         with Tracer("retrieval", trace_id=tid) as tr:
-            chunks = await retrieve(sanitized_query, trace_id=tid)
+            chunks = await retrieve(sanitized_query, trace_id=tid, tier_config=tier_config)
         retrieval_ms = tr.latency_ms
 
         quality = compute_retrieval_quality(chunks)
@@ -663,6 +729,7 @@ async def ask(
                 prompt_name="qa",
                 user_vars={"context": gen_context, "question": sanitized_query},
                 trace_id=tid,
+                tier_config=tier_config,
             )
         generation_ms = tg.latency_ms
 
