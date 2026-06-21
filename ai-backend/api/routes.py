@@ -17,6 +17,10 @@ import tempfile
 import time
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.user_tier import TierConfig
 
 from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -40,7 +44,7 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
-def _resolve_tier(request: Request):
+def _resolve_tier(request: Request) -> "TierConfig":
     """Extract user email from header and return tier config."""
     email = request.headers.get("X-User-Email")
     return get_tier_config(email)
