@@ -42,6 +42,11 @@ T = TypeVar("T", bound=BaseModel)
 _client = OpenAI(api_key=config.OPENAI_API_KEY)
 _async_client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
 _groq_client = _SyncGroq(api_key=config.GROQ_API_KEY) if config.GROQ_API_KEY else None
+_async_groq_client = (
+    AsyncOpenAI(api_key=config.GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
+    if config.GROQ_API_KEY
+    else None
+)
 
 
 def _estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
@@ -251,10 +256,9 @@ async def stream(
         resolved_temp = temperature if temperature is not None else tier_config.temperature
         resolved_tokens = tier_config.max_tokens
         if tier_config.llm_provider == "groq":
-            streaming_client = AsyncOpenAI(
-                api_key=config.GROQ_API_KEY,
-                base_url="https://api.groq.com/openai/v1",
-            )
+            if _async_groq_client is None:
+                raise RuntimeError("GROQ_API_KEY not configured")
+            streaming_client = _async_groq_client
         else:
             streaming_client = _async_client
     else:
