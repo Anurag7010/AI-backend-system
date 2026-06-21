@@ -1,13 +1,16 @@
 # ai-backend/agents/react_agent.py
 import json
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from openai import AsyncOpenAI
 
 from agents.tools.base import ToolRegistry
 from core.config import config as Config
 from observability.logger import log_pipeline_event
+
+if TYPE_CHECKING:
+    from core.user_tier import TierConfig
 
 
 @dataclass
@@ -57,12 +60,28 @@ Rules:
 - Be concise and direct in your final answer
 - Cite document sources when answering from document content"""
 
-    def __init__(self, tool_registry: ToolRegistry, max_iterations: int = 8, model: str = None):
-        """Initialize with a tool registry and optional model override."""
+    def __init__(
+        self,
+        tool_registry: ToolRegistry,
+        max_iterations: int = 8,
+        model: str = None,
+        tier_config: "TierConfig | None" = None,
+    ):
+        """Initialize with a tool registry and tier configuration."""
         self.tools = tool_registry
         self.max_iterations = max_iterations
-        self.model = model or Config.MODEL_NAME
-        self.client = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
+        self.tier_config = tier_config
+
+        if tier_config and tier_config.llm_provider == "groq":
+            # Groq exposes an OpenAI-compatible API — reuse AsyncOpenAI with different base_url
+            self.model = tier_config.llm_model
+            self.client = AsyncOpenAI(
+                api_key=Config.GROQ_API_KEY,
+                base_url="https://api.groq.com/openai/v1",
+            )
+        else:
+            self.model = model or (tier_config.llm_model if tier_config else Config.MODEL_NAME)
+            self.client = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
 
     async def run(
         self,
@@ -71,6 +90,7 @@ Rules:
         trace_id: str = None,
         conversation_history: list[dict] = None,
         user_memories: list[str] = None,
+        tier_config: "TierConfig | None" = None,
     ) -> AgentResult:
         """
         Run the ReAct loop for a given query.
