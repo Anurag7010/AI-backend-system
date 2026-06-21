@@ -225,8 +225,8 @@ export default function SearchPage() {
                 </div>
 
                 {/* Score distribution */}
-                <div className="mb-4 p-3 rounded-lg bg-muted/50 border border-border">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Score distribution</p>
+                <div className="mb-4 p-3 rounded-lg bg-forge-dark/80 border border-stone-mid/30">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-ash-gray mb-2">Score Distribution</p>
                   <div className="flex items-end gap-1 h-8">
                     {results.map((r, i) => (
                       <div
@@ -234,18 +234,18 @@ export default function SearchPage() {
                         className={cn(
                           'flex-1 rounded-sm transition-all cursor-pointer',
                           (r.score ?? 0) >= 0.85 ? 'bg-green-500' :
-                          (r.score ?? 0) >= 0.7 ? 'bg-yellow-500' : 'bg-muted-foreground/40',
+                          (r.score ?? 0) >= 0.7 ? 'bg-yellow-500/80' : 'bg-ember/50',
                           selectedResult === r && 'ring-1 ring-ember'
                         )}
-                        style={{ height: `${(r.score ?? 0) * 100}%` }}
+                        style={{ height: `${Math.max((r.score ?? 0) * 100, 8)}%` }}
                         onClick={() => setSelectedResult(r)}
                         title={`Result ${i + 1}: ${r.score?.toFixed(3)}`}
                       />
                     ))}
                   </div>
                   <div className="flex justify-between mt-1">
-                    <span className="text-xs text-muted-foreground">Result 1</span>
-                    <span className="text-xs text-muted-foreground">Result {results.length}</span>
+                    <span className="text-[10px] text-ash-gray/60">Result 1</span>
+                    <span className="text-[10px] text-ash-gray/60">Result {results.length}</span>
                   </div>
                 </div>
 

@@ -58,9 +58,9 @@ export function SearchResultCard({
 
   const score = result.score ?? 0
   const quality =
-    score >= 0.85 ? { label: 'High', colorClass: 'text-green-600', barClass: 'bg-green-500' } :
-    score >= 0.7  ? { label: 'Medium', colorClass: 'text-yellow-600', barClass: 'bg-yellow-500' } :
-    { label: 'Low', colorClass: 'text-muted-foreground', barClass: 'bg-muted-foreground/40' }
+    score >= 0.85 ? { label: 'High', colorClass: 'text-green-400', barClass: 'bg-green-500' } :
+    score >= 0.7  ? { label: 'Medium', colorClass: 'text-yellow-400', barClass: 'bg-yellow-500' } :
+    { label: 'Low', colorClass: 'text-ash-gray', barClass: 'bg-stone-mid/60' }
 
   const sourceName = result.metadata?.source as string || 'Unknown source'
   const preview = result.content.slice(0, 300)
@@ -76,27 +76,28 @@ export function SearchResultCard({
   return (
     <div
       className={cn(
-        'rounded-xl border bg-card transition-all duration-150 cursor-pointer',
-        'hover:shadow-md hover:border-border/80',
-        isSelected && 'border-ember/50 ring-1 ring-ember/30 shadow-md'
+        'rounded-xl border transition-all duration-150 cursor-pointer',
+        'bg-forge-dark border-stone-mid/30',
+        'hover:border-stone-mid/60 hover:shadow-[0_0_0_1px_rgba(76,85,96,0.4)]',
+        isSelected && 'border-ember/50 ring-1 ring-ember/20'
       )}
       onClick={onSelect}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3 p-4 pb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="shrink-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-mono text-muted-foreground">
+          <span className="shrink-0 w-6 h-6 rounded-full bg-stone-mid/20 flex items-center justify-center text-xs font-mono text-ash-gray">
             {index + 1}
           </span>
           <div className="min-w-0">
-            <p className="text-xs font-medium text-foreground truncate">{sourceName}</p>
+            <p className="text-xs font-medium text-parchment/80 truncate">{sourceName}</p>
             <p className={cn('text-xs', quality.colorClass)}>
               {quality.label} relevance · {Math.round(score * 100)}%
             </p>
           </div>
         </div>
         <div className="shrink-0 flex items-center gap-1.5">
-          <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className="w-16 h-1.5 bg-stone-mid/30 rounded-full overflow-hidden">
             <div
               className={cn('h-full rounded-full transition-all', quality.barClass)}
               style={{ width: `${score * 100}%` }}
@@ -111,7 +112,7 @@ export function SearchResultCard({
       {/* Content */}
       <div className="px-4 pb-3">
         <p
-          className="text-sm text-foreground/80 leading-relaxed"
+          className="text-sm text-parchment/75 leading-relaxed"
           dangerouslySetInnerHTML={{
             __html: highlightMatches(expanded ? result.content : preview, query)
           }}
