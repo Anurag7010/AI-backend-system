@@ -177,7 +177,7 @@
   }
 
   .prose-ai {
-    @apply text-sm leading-relaxed text-foreground;
+    @apply prose prose-invert max-w-none text-sm leading-relaxed;
   }
   .prose-ai h1, .prose-ai h2, .prose-ai h3 { @apply font-semibold tracking-tight; }
   .prose-ai h1 { @apply text-xl mt-6 mb-3; }

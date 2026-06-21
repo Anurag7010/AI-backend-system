@@ -16,6 +16,7 @@ interface ConversationSidebarProps {
   onSelect: (id: string) => void
   onNew: () => void
   className?: string
+  refreshKey?: number
 }
 
 export function ConversationSidebar({
@@ -23,6 +24,7 @@ export function ConversationSidebar({
   onSelect,
   onNew,
   className,
+  refreshKey,
 }: ConversationSidebarProps) {
   const [conversations, setConversations] = useState<ConversationItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,7 +71,7 @@ export function ConversationSidebar({
 
   useEffect(() => {
     loadConversations()
-  }, [loadConversations])
+  }, [loadConversations, refreshKey])
 
   const groups = groupByDate(conversations)
 

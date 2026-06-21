@@ -119,47 +119,56 @@ Rules:
                 tool_choice="auto",
             )
 
+            if not response.choices:
+                raise ValueError("OpenAI returned empty choices array")
             message = response.choices[0].message
             finish_reason = response.choices[0].finish_reason
 
             messages.append(message.model_dump(exclude_none=True))
 
             if finish_reason == "tool_calls" and message.tool_calls:
-                tool_call = message.tool_calls[0]
-                tool_name = tool_call.function.name
-                tool_input = json.loads(tool_call.function.arguments)
+                # OpenAI may return multiple parallel tool calls in one response.
+                # Every tool_call_id in the assistant message MUST have a corresponding
+                # tool response message — missing even one causes a 400 on the next call.
+                last_observation = ""
+                for tool_call in message.tool_calls:
+                    tool_name = tool_call.function.name
+                    tool_input = json.loads(tool_call.function.arguments)
 
-                step.action = tool_name
-                step.action_input = tool_input
+                    log_pipeline_event(
+                        event="agent_tool_call",
+                        trace_id=trace_id,
+                        metadata={
+                            "step": iteration,
+                            "tool": tool_name,
+                            "input_preview": str(tool_input)[:100],
+                        },
+                    )
 
-                log_pipeline_event(
-                    event="agent_tool_call",
-                    trace_id=trace_id,
-                    metadata={
-                        "step": iteration,
-                        "tool": tool_name,
-                        "input_preview": str(tool_input)[:100],
-                    },
-                )
+                    result = await self.tools.execute(tool_name, tool_input)
+                    observation = result.to_observation()
+                    last_observation = observation
 
-                result = await self.tools.execute(tool_name, tool_input)
-                observation = result.to_observation()
-                step.observation = observation
+                    log_pipeline_event(
+                        event="agent_observation",
+                        trace_id=trace_id,
+                        metadata={
+                            "step": iteration,
+                            "tool": tool_name,
+                            "success": result.success,
+                            "output_preview": observation[:100],
+                        },
+                    )
 
-                log_pipeline_event(
-                    event="agent_observation",
-                    trace_id=trace_id,
-                    metadata={
-                        "step": iteration,
-                        "tool": tool_name,
-                        "success": result.success,
-                        "output_preview": observation[:100],
-                    },
-                )
+                    messages.append(
+                        {"role": "tool", "tool_call_id": tool_call.id, "content": observation}
+                    )
 
-                messages.append(
-                    {"role": "tool", "tool_call_id": tool_call.id, "content": observation}
-                )
+                # Record the primary (first) tool call for the step trace
+                primary = message.tool_calls[0]
+                step.action = primary.function.name
+                step.action_input = json.loads(primary.function.arguments)
+                step.observation = last_observation
 
                 steps.append(step)
                 continue
@@ -200,7 +209,7 @@ Rules:
         )
 
         final_answer = (
-            final_response.choices[0].message.content
+            (final_response.choices[0].message.content if final_response.choices else None)
             or "I was unable to complete this task within the allowed steps."
         )
 

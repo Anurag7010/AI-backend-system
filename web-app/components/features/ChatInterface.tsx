@@ -59,8 +59,12 @@ function ArrowRight() {
 export function ChatInterface({ documentId: _documentId, documentName }: ChatInterfaceProps) {
   const [query, setQuery] = useState('')
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0)
   const [showSidebar, setShowSidebar] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  // Only load messages when the user SELECTS an existing conversation from the sidebar.
+  // Set to true in handleSelectConversation, false when ensureConversation creates a new one.
+  const shouldLoadMessagesRef = useRef(false)
   const { state, messages, askStream, clearHistory, loadHistory, isStreaming } = useAsk()
   const router = useRouter()
 
@@ -69,7 +73,8 @@ export function ChatInterface({ documentId: _documentId, documentName }: ChatInt
   }, [messages, isStreaming])
 
   useEffect(() => {
-    if (!conversationId) return
+    if (!conversationId || !shouldLoadMessagesRef.current) return
+    shouldLoadMessagesRef.current = false
     let cancelled = false
     async function fetchMessages() {
       const token = getAccessToken()
@@ -109,7 +114,9 @@ export function ChatInterface({ documentId: _documentId, documentName }: ChatInt
     })
     const data: unknown = await res.json()
     const id = data && typeof data === 'object' && 'id' in data ? String(data.id) : ''
+    // shouldLoadMessagesRef stays false — this is a new empty conversation, don't load
     setConversationId(id)
+    setSidebarRefreshKey((k) => k + 1)
     return id
   }
 
@@ -124,6 +131,7 @@ export function ChatInterface({ documentId: _documentId, documentName }: ChatInt
       },
       body: JSON.stringify({ title }),
     })
+    setSidebarRefreshKey((k) => k + 1)
   }
 
   async function handleSubmit() {
@@ -145,6 +153,7 @@ export function ChatInterface({ documentId: _documentId, documentName }: ChatInt
   }
 
   function handleSelectConversation(id: string) {
+    shouldLoadMessagesRef.current = true
     clearHistory()
     setConversationId(id)
   }
@@ -171,6 +180,7 @@ export function ChatInterface({ documentId: _documentId, documentName }: ChatInt
             currentConversationId={conversationId ?? undefined}
             onSelect={handleSelectConversation}
             onNew={handleNewConversation}
+            refreshKey={sidebarRefreshKey}
           />
         </div>
       )}
