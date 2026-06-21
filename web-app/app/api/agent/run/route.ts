@@ -44,7 +44,7 @@ async function agentRunHandler(
   await queriesRepository.updateAnswer(
     queryRecord.id,
     result.answer,
-    Date.now() - startTime,
+    Math.round(Date.now() - startTime),
     { steps: result.totalSteps, stoppedReason: result.stoppedReason }
   )
 

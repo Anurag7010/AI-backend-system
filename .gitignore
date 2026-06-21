@@ -131,6 +131,7 @@ dmypy.json
 .project
 .pydevproject
 .settings/
+chroma_db/
 
 # OS specific
 Thumbs.db
@@ -159,4 +160,4 @@ external/
 # Next.js
 .next/
 out/
-chroma_db/
+

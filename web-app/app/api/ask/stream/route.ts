@@ -81,7 +81,7 @@ async function streamHandler(
           if (data['type'] === 'token' && typeof data['content'] === 'string') {
             accumulatedAnswer += data['content']
           } else if (data['type'] === 'done') {
-            const latencyMs = typeof data['latency_ms'] === 'number' ? data['latency_ms'] : 0
+            const latencyMs = typeof data['latency_ms'] === 'number' ? Math.round(data['latency_ms']) : 0
             const traceId = typeof data['trace_id'] === 'string' ? data['trace_id'] : ''
             // Fire and forget — do not block the stream
             queriesRepository

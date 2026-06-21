@@ -1,0 +1,165 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, dev]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── TypeScript / Next.js ───────────────────────────────────────
+  typescript:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint . --ext .ts,.tsx --max-warnings 0
+
+      - name: Run tests
+        run: npm test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/test_db
+          JWT_SECRET: test-jwt-secret-for-ci
+          NEXT_PUBLIC_AI_BACKEND_URL: http://localhost:8000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          AI_BACKEND_URL: http://localhost:8000
+          LOG_LEVEL: error
+
+      - name: Build
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          JWT_SECRET: test-jwt-secret-for-ci
+          NEXT_PUBLIC_AI_BACKEND_URL: http://localhost:8000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+  # ─── Python / FastAPI ────────────────────────────────────────────
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install format tools
+        run: pip install black isort
+
+      - name: Format check
+        run: black --check core/ rag/ agents/ memory/ api/ observability/ evals/ pipelines/ mcp_server/ --line-length 100
+
+      - name: Import sort check
+        run: isort --check-only core/ rag/ agents/ memory/ api/ observability/ evals/ pipelines/ mcp_server/ --profile black --line-length 100
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short --ignore=tests/test_smoke.py -x
+        env:
+          OPENAI_API_KEY: test-key-not-used-mocked
+          MODEL_NAME: gpt-4o
+          TEMPERATURE: "0.0"
+          MAX_TOKENS: "2000"
+          LOG_LEVEL: ERROR
+          INTERNAL_API_KEY: test-internal-key
+          ENVIRONMENT: development
+
+      - name: Type check (non-blocking)
+        run: pip install mypy && mypy core/ api/ --ignore-missing-imports --no-strict-optional || true
+
+  # ─── Eval Smoke Test ─────────────────────────────────────────────
+  eval-smoke:
+    name: Eval Smoke Test
+    runs-on: ubuntu-latest
+    needs: [python]
+    defaults:
+      run:
+        working-directory: ai-backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run eval smoke test (3 questions)
+        run: python -m evals.smoke_test
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        continue-on-error: true
+        # Smoke test requires OPENAI_API_KEY — skips gracefully if not set in secrets
+
+  # ─── Security Scan ───────────────────────────────────────────────
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check .env files not committed
+        run: |
+          if git ls-files | grep -E "^\.env$|^\.env\.local$|^ai-backend/\.env$|^web-app/\.env\.local$"; then
+            echo "ERROR: .env file is tracked by git. Remove it and add to .gitignore"
+            exit 1
+          fi
+          echo "No .env files committed"
+
+      - name: Audit npm dependencies
+        working-directory: web-app
+        run: npm audit --audit-level=high || true
+        # Non-blocking — advisory vulnerabilities shouldn't block CI
+
+      - name: Audit Python dependencies
+        working-directory: ai-backend
+        run: pip install safety && safety check -r requirements.txt || true

@@ -81,8 +81,9 @@ function AccountTab() {
           variant="outline"
           size="sm"
           onClick={async () => {
+            const token = getAccessToken()
             const res = await fetch('/api/export', {
-              headers: { Authorization: `Bearer ${getAccessToken()}` },
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
             })
             if (res.ok) {
               const blob = await res.blob()
@@ -106,8 +107,9 @@ function UsageTab() {
   const [stats, setStats] = useState<Record<string, number | string>>({})
 
   useEffect(() => {
+    const token = getAccessToken()
     fetch('/api/dashboard/stats', {
-      headers: { Authorization: `Bearer ${getAccessToken()}` },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then(r => r.ok ? r.json() : null)
       .then(data => {

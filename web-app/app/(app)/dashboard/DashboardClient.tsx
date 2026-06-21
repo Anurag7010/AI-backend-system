@@ -114,8 +114,8 @@ export function DashboardClient({
       label: 'Document Index',
     },
     {
-      text: aiStats?.cacheHitRate !== null && aiStats?.cacheHitRate !== undefined
-        ? `Cache hit rate: ${(aiStats.cacheHitRate * 100).toFixed(0)}% — your queries are lightning fast`
+      text: aiStats?.cacheHitRate != null
+        ? `Cache hit rate: ${((aiStats?.cacheHitRate ?? 0) * 100).toFixed(0)}% — your queries are lightning fast`
         : 'Cache metrics will appear after your first queries',
       label: 'Cache Performance',
     },
@@ -289,8 +289,8 @@ export function DashboardClient({
 
             {/* Mini bar chart */}
             <div className="flex items-end gap-1 h-20">
-              {(queryVolumeData ?? Array.from({ length: 7 }, () => ({ queries: 0 }))).slice(-7).map((d, i) => {
-                const max = Math.max(...(queryVolumeData ?? []).map(dd => dd.queries), 1)
+              {(queryVolumeData ?? Array.from({ length: 7 }, () => ({ queries: 0 }))).slice(-7).map((d, i, sliced) => {
+                const max = Math.max(...sliced.map(dd => dd.queries), 1)
                 const height = ((d.queries ?? 0) / max) * 100
                 return (
                   <motion.div
