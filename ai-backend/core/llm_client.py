@@ -13,14 +13,18 @@ Public functions:
 import asyncio
 import json
 import time
-from typing import Any, AsyncGenerator, Type, TypeVar
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Type, TypeVar
 
+from groq import Groq as _SyncGroq
 from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI, OpenAI
 from pydantic import BaseModel
 
 from core.config import config
 from core.retry import with_retry
 from observability.logger import get_logger, log_llm_call, log_pipeline_event
+
+if TYPE_CHECKING:
+    from core.user_tier import TierConfig
 
 logger = get_logger(__name__)
 
@@ -37,6 +41,7 @@ T = TypeVar("T", bound=BaseModel)
 
 _client = OpenAI(api_key=config.OPENAI_API_KEY)
 _async_client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
+_groq_client = _SyncGroq(api_key=config.GROQ_API_KEY) if config.GROQ_API_KEY else None
 
 
 def _estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
@@ -66,19 +71,32 @@ def complete(
     model: str | None = None,
     temperature: float | None = None,
     max_tokens: int | None = None,
+    provider: str = "openai",
+    tier_config: "TierConfig | None" = None,
     trace_id: str | None = None,
     extra_metadata: dict | None = None,
 ) -> dict:
     """
     Send a prompt to the LLM and return a normalized response dict.
 
+    Priority: tier_config > explicit model/provider params > config defaults.
+
     Returns:
         {text, tokens_used, model, latency_ms, error}
         error is None on success, a string on failure.
     """
-    resolved_model = model or config.MODEL_NAME
-    resolved_temp = temperature if temperature is not None else config.TEMPERATURE
-    resolved_tokens = max_tokens or config.MAX_TOKENS
+    # Resolve provider, model, temp, tokens from tier_config or explicit params
+    if tier_config is not None:
+        resolved_provider = tier_config.llm_provider
+        resolved_model = model or tier_config.llm_model
+        resolved_temp = temperature if temperature is not None else tier_config.temperature
+        resolved_tokens = max_tokens or tier_config.max_tokens
+    else:
+        resolved_provider = provider
+        resolved_model = model or config.MODEL_NAME
+        resolved_temp = temperature if temperature is not None else config.TEMPERATURE
+        resolved_tokens = max_tokens or config.MAX_TOKENS
+
     resolved_tid = trace_id or ""
     # system_prompt takes precedence over system when provided
     resolved_system = system_prompt if system_prompt is not None else system
@@ -90,7 +108,18 @@ def complete(
 
     t0 = time.perf_counter()
     try:
-        response = _call_openai(messages, resolved_model, resolved_temp, resolved_tokens)
+        if resolved_provider == "groq":
+            if _groq_client is None:
+                raise RuntimeError("GROQ_API_KEY not configured")
+            response = _groq_client.chat.completions.create(
+                model=resolved_model,
+                messages=messages,
+                temperature=resolved_temp,
+                max_tokens=resolved_tokens,
+            )
+        else:
+            response = _call_openai(messages, resolved_model, resolved_temp, resolved_tokens)
+
         latency_ms = (time.perf_counter() - t0) * 1000
         usage = response.usage
         cost = _estimate_cost(resolved_model, usage.prompt_tokens, usage.completion_tokens)
@@ -207,6 +236,7 @@ async def stream(
     system: str = "You are a helpful assistant.",
     model: str | None = None,
     temperature: float | None = None,
+    tier_config: "TierConfig | None" = None,
     trace_id: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
@@ -216,9 +246,23 @@ async def stream(
     Re-raises on error — caller sends the error SSE event.
     No retry: streaming is stateful; retrying would duplicate tokens.
     """
-    resolved_model = model or config.MODEL_NAME
-    resolved_temp = temperature if temperature is not None else config.TEMPERATURE
-    resolved_tokens = config.MAX_TOKENS
+    if tier_config is not None:
+        resolved_model = model or tier_config.llm_model
+        resolved_temp = temperature if temperature is not None else tier_config.temperature
+        resolved_tokens = tier_config.max_tokens
+        if tier_config.llm_provider == "groq":
+            streaming_client = AsyncOpenAI(
+                api_key=config.GROQ_API_KEY,
+                base_url="https://api.groq.com/openai/v1",
+            )
+        else:
+            streaming_client = _async_client
+    else:
+        resolved_model = model or config.MODEL_NAME
+        resolved_temp = temperature if temperature is not None else config.TEMPERATURE
+        resolved_tokens = config.MAX_TOKENS
+        streaming_client = _async_client
+
     resolved_tid = trace_id or ""
 
     messages = [
@@ -231,7 +275,7 @@ async def stream(
     logger.info("[llm] stream_start", extra={"trace_id": resolved_tid, "model": resolved_model})
 
     try:
-        response = await _async_client.chat.completions.create(
+        response = await streaming_client.chat.completions.create(
             model=resolved_model,
             messages=messages,
             temperature=resolved_temp,
@@ -275,6 +319,7 @@ async def complete_with_fallback(
     user_vars: dict,
     trace_id: str | None = None,
     max_retries: int = 2,
+    tier_config: "TierConfig | None" = None,
 ) -> dict:
     """
     Complete with automatic output validation and retry.
@@ -306,6 +351,7 @@ async def complete_with_fallback(
             complete,
             current_prompt,
             system_prompt=template.system,
+            tier_config=tier_config,
             trace_id=trace_id,
             extra_metadata={"prompt_version": template.version, "attempt": attempt},
         )
