@@ -18,16 +18,20 @@ interface ChatInterfaceProps {
 
 const SUGGESTED_QUESTIONS = [
   {
-    title: 'What is the main topic?',
-    subtitle: 'Get a high-level overview of your document',
+    title: 'What are the key arguments and conclusions?',
+    subtitle: 'Get a structured summary of the main claims and what they support',
   },
   {
-    title: 'Summarize the key points',
-    subtitle: 'Extract the most important ideas',
+    title: 'Compare ideas across all my documents',
+    subtitle: 'Find similarities, differences, and contradictions between sources',
   },
   {
-    title: 'What are the conclusions?',
-    subtitle: 'Understand what the document argues',
+    title: 'Find every mention of a topic with citations',
+    subtitle: 'Locate specific references and trace them back to exact sources',
+  },
+  {
+    title: 'Explain the most complex concept simply',
+    subtitle: 'Break down technical material into plain language with examples',
   },
 ]
 

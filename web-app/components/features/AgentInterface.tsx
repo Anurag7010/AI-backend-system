@@ -11,6 +11,7 @@ import { cn } from '@/lib/cn'
 const TOOL_BADGES = [
   {
     label: 'Search docs',
+    template: 'Search my documents for ',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="h-3 w-3" style={{ color: '#D4572A' }}>
         <circle cx="6.5" cy="6.5" r="4.5" /><path d="M13 13l-3-3" />
@@ -19,6 +20,7 @@ const TOOL_BADGES = [
   },
   {
     label: 'List files',
+    template: 'List all my documents with their names and chunk counts',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="h-3 w-3" style={{ color: '#D4572A' }}>
         <path d="M11 2H5a1 1 0 00-1 1v10a1 1 0 001 1h6a1 1 0 001-1V5L11 2z" />
@@ -28,6 +30,7 @@ const TOOL_BADGES = [
   },
   {
     label: 'Calculate',
+    template: 'Calculate ',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="h-3 w-3" style={{ color: '#D4572A' }}>
         <rect x="2" y="2" width="12" height="12" rx="1.5" />
@@ -37,6 +40,7 @@ const TOOL_BADGES = [
   },
   {
     label: 'Web search',
+    template: 'Search the web for ',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="h-3 w-3" style={{ color: '#D4572A' }}>
         <circle cx="8" cy="8" r="6" /><path d="M8 2c-2 2-2 8 0 12M8 2c2 2 2 8 0 12M2 8h12" />
@@ -45,6 +49,7 @@ const TOOL_BADGES = [
   },
   {
     label: 'Get metadata',
+    template: 'Get metadata for my document ',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="h-3 w-3" style={{ color: '#D4572A' }}>
         <circle cx="8" cy="8" r="6" /><path d="M8 7v4M8 5.5v.5" />
@@ -55,20 +60,20 @@ const TOOL_BADGES = [
 
 const SUGGESTED_QUERIES = [
   {
-    label: 'List my documents',
-    query: 'What documents do I have and how many chunks does each have?',
+    label: 'Document inventory',
+    query: 'List all my documents with their names and chunk counts',
   },
   {
-    label: 'Calculate from data',
-    query: 'If I have 5 documents averaging 42 chunks each, how many total chunks is that?',
+    label: 'Research + web update',
+    query: 'Search my documents for the main topic, then check the web for the latest developments on it',
   },
   {
-    label: 'Search + summarize',
-    query: 'Search for the main conclusions in my documents and summarize them',
+    label: 'Cross-document analysis',
+    query: 'Search across all my documents and find the most important recurring themes',
   },
   {
-    label: 'Web + documents',
-    query: 'What are the latest developments in the topic covered by my documents?',
+    label: 'Fact check with sources',
+    query: 'What specific claims are made in my documents and what evidence supports them?',
   },
 ]
 
@@ -130,16 +135,26 @@ export default function AgentInterface() {
         {/* Tool capability badges */}
         <div className="flex flex-wrap gap-2 pt-4 pb-2">
           {TOOL_BADGES.map((badge, i) => (
-            <motion.span
+            <motion.button
               key={badge.label}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
-              className="flex items-center gap-1.5 bg-forge-dark border border-stone-mid/50 rounded-full px-3 py-1.5 text-parchment/70 text-xs font-medium cursor-default pointer-events-none"
+              onClick={() => {
+                if (isRunning) return
+                setQuery(badge.template)
+              }}
+              disabled={isRunning}
+              className={cn(
+                'flex items-center gap-1.5 bg-forge-dark border border-stone-mid/50 rounded-full px-3 py-1.5',
+                'text-parchment/70 text-xs font-medium transition-all duration-150',
+                'hover:border-ember/50 hover:text-parchment hover:bg-stone-mid/10',
+                'disabled:opacity-40 disabled:cursor-not-allowed',
+              )}
             >
               {badge.icon}
               {badge.label}
-            </motion.span>
+            </motion.button>
           ))}
         </div>
       </div>
