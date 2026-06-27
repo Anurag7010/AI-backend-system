@@ -456,7 +456,23 @@ def _retrieve_single(query: str, top_k: int, strategy: str, tier_config: Any = N
     if strategy not in strategy_map:
         raise ValueError(f"Unknown strategy '{strategy}'. Choose: {list(strategy_map)}")
     docs = strategy_map[strategy]()
-    return _normalize_docs(docs)
+    result = _normalize_docs(docs)
+
+    # Fallback: if free-tier HF store returns nothing, try OpenAI store.
+    # Handles documents ingested before dual-write was deployed.
+    if not result and tier_config is not None and not tier_config.is_owner:
+        logger.info("[rag] HF vectorstore empty, falling back to OpenAI vectorstore")
+        fallback_vs = _get_vectorstore(deps)
+        fallback_strategy_map = {
+            "semantic": lambda: _retrieve_semantic(query, top_k, fallback_vs),
+            "hybrid": lambda: _retrieve_hybrid(query, top_k, fallback_vs),
+            "multi_query": lambda: _retrieve_multi_query(query, top_k, fallback_vs, deps),
+            "rrf": lambda: _retrieve_rrf(query, top_k, fallback_vs),
+        }
+        docs = fallback_strategy_map[strategy]()
+        result = _normalize_docs(docs)
+
+    return result
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -504,7 +520,10 @@ async def retrieve(
 
     from core.cache import make_cache_key, retrieval_cache
 
-    cache_key = make_cache_key(query=query, top_k=resolved_top_k, strategy=resolved_strategy)
+    cache_key = make_cache_key(
+        query=query, top_k=resolved_top_k, strategy=resolved_strategy,
+        tier=tier_config.tier.value if tier_config else ""
+    )
     cached = retrieval_cache.get(cache_key)
     if cached is not None:
         log_pipeline_event(
@@ -685,6 +704,7 @@ async def ask(
             query=sanitized_query,
             strategy=config.DEFAULT_RETRIEVAL_STRATEGY,
             history=effective_history,
+            tier=tier_config.tier.value if tier_config else "",
         )
         cached_answer = llm_cache.get(llm_cache_key)
         if cached_answer is not None:

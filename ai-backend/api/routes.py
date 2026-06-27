@@ -62,11 +62,15 @@ from core.request_queue import request_queue
 class _RAGAdapter:
     """Wraps module-level rag_interface functions as an object for tool injection."""
 
+    def __init__(self, tier_config=None):
+        """Store tier config so retrieve() uses the correct vectorstore."""
+        self._tier_config = tier_config
+
     async def retrieve(self, query: str, top_k: int = 5, strategy: str = "semantic") -> list[dict]:
         """Delegate to module-level retrieve()."""
         from rag.rag_interface import retrieve as _retrieve
 
-        return await _retrieve(query=query, top_k=top_k, strategy=strategy)
+        return await _retrieve(query=query, top_k=top_k, strategy=strategy, tier_config=self._tier_config)
 
 
 # ── ChromaDB document repository ──────────────────────────────────────────────
@@ -237,7 +241,7 @@ async def _run_ask_pipeline(
     if route == QueryRoute.AGENT:
         from agents.factory import create_agent
 
-        rag = _RAGAdapter()
+        rag = _RAGAdapter(tier_config=tier_config)
         doc_repo = _ChromaDocumentRepository()
         agent = create_agent(
             rag_interface=rag,
@@ -628,7 +632,7 @@ async def run_agent(body: AskRequest, request: Request) -> AgentRunResponse | JS
     try:
         from agents.factory import create_agent
 
-        rag = _RAGAdapter()
+        rag = _RAGAdapter(tier_config=tier_config)
         doc_repo = _ChromaDocumentRepository()
         agent = create_agent(
             rag_interface=rag,
