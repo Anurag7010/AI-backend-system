@@ -15,6 +15,7 @@ import json
 import time
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Type, TypeVar
 
+import groq as _groq_module
 from groq import Groq as _SyncGroq
 from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI, OpenAI
 from pydantic import BaseModel
@@ -37,6 +38,11 @@ COST_PER_1K_TOKENS: dict[str, dict[str, float]] = {
 }
 
 _RETRYABLE = (APIStatusError, APITimeoutError, APIConnectionError)
+_GROQ_RETRYABLE = (
+    _groq_module.APIStatusError,
+    _groq_module.APITimeoutError,
+    _groq_module.APIConnectionError,
+)
 T = TypeVar("T", bound=BaseModel)
 
 _client = OpenAI(api_key=config.OPENAI_API_KEY)
@@ -61,6 +67,19 @@ def _estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 def _call_openai(messages: list[dict], model: str, temperature: float, max_tokens: int) -> Any:
     """Raw retried OpenAI call — returns the full API response object."""
     return _client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+
+
+@with_retry(max_attempts=3, base_delay=1.0, backoff_factor=2.0, retryable_exceptions=_GROQ_RETRYABLE)
+def _call_groq(messages: list[dict], model: str, temperature: float, max_tokens: int) -> Any:
+    """Raw retried Groq call — returns the full API response object."""
+    if _groq_client is None:
+        raise RuntimeError("GROQ_API_KEY not configured")
+    return _groq_client.chat.completions.create(
         model=model,
         messages=messages,
         temperature=temperature,
@@ -114,14 +133,7 @@ def complete(
     t0 = time.perf_counter()
     try:
         if resolved_provider == "groq":
-            if _groq_client is None:
-                raise RuntimeError("GROQ_API_KEY not configured")
-            response = _groq_client.chat.completions.create(
-                model=resolved_model,
-                messages=messages,
-                temperature=resolved_temp,
-                max_tokens=resolved_tokens,
-            )
+            response = _call_groq(messages, resolved_model, resolved_temp, resolved_tokens)
         else:
             response = _call_openai(messages, resolved_model, resolved_temp, resolved_tokens)
 
