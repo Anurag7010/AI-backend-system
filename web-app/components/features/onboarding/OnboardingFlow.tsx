@@ -14,36 +14,37 @@ import { UploadStep } from './UploadStep'
 import { AskStep } from './AskStep'
 
 interface OnboardingFlowProps {
+  email?: string
   onDone: () => void
 }
 
-export function OnboardingFlow({ onDone }: OnboardingFlowProps) {
+export function OnboardingFlow({ email, onDone }: OnboardingFlowProps) {
   const [step, setStep] = useState<OnboardingStep>(() => {
-    const saved = getLocalOnboardingState()
+    const saved = getLocalOnboardingState(email)
     return saved.step !== 'complete' ? saved.step : 'welcome'
   })
   const [documentId, setDocumentId] = useState(() => {
-    const saved = getLocalOnboardingState()
+    const saved = getLocalOnboardingState(email)
     return saved.documentId ?? ''
   })
   const [documentName, setDocumentName] = useState(() => {
-    const saved = getLocalOnboardingState()
+    const saved = getLocalOnboardingState(email)
     return saved.documentName ?? ''
   })
 
   const handleSkip = useCallback(async () => {
-    await skipOnboarding(getAccessToken())
+    await skipOnboarding(getAccessToken(), email)
     onDone()
-  }, [onDone])
+  }, [onDone, email])
 
   const handleComplete = useCallback(async () => {
-    await completeOnboarding(getAccessToken())
+    await completeOnboarding(getAccessToken(), email)
     onDone()
-  }, [onDone])
+  }, [onDone, email])
 
   const goTo = (s: OnboardingStep) => {
     setStep(s)
-    setLocalOnboardingState({ step: s })
+    setLocalOnboardingState({ step: s }, email)
   }
 
   return (
@@ -77,7 +78,7 @@ export function OnboardingFlow({ onDone }: OnboardingFlowProps) {
             onComplete={(id, name) => {
               setDocumentId(id)
               setDocumentName(name)
-              setLocalOnboardingState({ documentId: id, documentName: name })
+              setLocalOnboardingState({ documentId: id, documentName: name }, email)
               goTo('ask')
             }}
             onSkip={handleSkip}

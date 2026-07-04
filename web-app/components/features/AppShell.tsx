@@ -29,7 +29,7 @@ export function AppShell({ email, children }: AppShellProps) {
     // so the server call includes a valid Bearer header.
     if (authLoading) return
 
-    const localState = getLocalOnboardingState()
+    const localState = getLocalOnboardingState(email)
     // Fast path: localStorage says complete — no need to hit the server.
     // State already starts false, so no setState needed here.
     if (localState.step === 'complete') {
@@ -47,7 +47,7 @@ export function AppShell({ email, children }: AppShellProps) {
       .catch(() => {
         setShowOnboarding(shouldShowOnboarding(localState, false))
       })
-  }, [authLoading])
+  }, [authLoading, email])
 
   return (
     <div className="flex h-screen overflow-hidden bg-ember-black">
@@ -67,7 +67,7 @@ export function AppShell({ email, children }: AppShellProps) {
       <ToastContainerWrapper />
 
       {showOnboarding && (
-        <OnboardingFlow onDone={() => setShowOnboarding(false)} />
+        <OnboardingFlow email={email} onDone={() => setShowOnboarding(false)} />
       )}
     </div>
   )

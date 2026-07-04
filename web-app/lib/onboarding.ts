@@ -12,13 +12,19 @@ const DEFAULT_STATE: OnboardingState = {
   skipped: false,
 }
 
-const KEY = 'prometheon_onboarding'
+const KEY_PREFIX = 'prometheon_onboarding'
+
+// Scope by user: a shared browser must not let user A's completed onboarding
+// hide the flow from user B's brand-new account.
+function keyFor(email?: string | null): string {
+  return email ? `${KEY_PREFIX}:${email}` : KEY_PREFIX
+}
 
 /** Read onboarding state from localStorage (client-side only). */
-export function getLocalOnboardingState(): OnboardingState {
+export function getLocalOnboardingState(email?: string | null): OnboardingState {
   if (typeof window === 'undefined') return DEFAULT_STATE
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(keyFor(email))
     if (!raw) return DEFAULT_STATE
     return JSON.parse(raw) as OnboardingState
   } catch {
@@ -27,10 +33,13 @@ export function getLocalOnboardingState(): OnboardingState {
 }
 
 /** Write onboarding state to localStorage. */
-export function setLocalOnboardingState(state: Partial<OnboardingState>): void {
+export function setLocalOnboardingState(
+  state: Partial<OnboardingState>,
+  email?: string | null
+): void {
   if (typeof window === 'undefined') return
-  const current = getLocalOnboardingState()
-  localStorage.setItem(KEY, JSON.stringify({ ...current, ...state }))
+  const current = getLocalOnboardingState(email)
+  localStorage.setItem(keyFor(email), JSON.stringify({ ...current, ...state }))
 }
 
 function _postComplete(token: string | null): void {
@@ -41,14 +50,20 @@ function _postComplete(token: string | null): void {
 }
 
 /** Mark onboarding as complete locally and persist to server. */
-export async function completeOnboarding(token?: string | null): Promise<void> {
-  setLocalOnboardingState({ step: 'complete' })
+export async function completeOnboarding(
+  token?: string | null,
+  email?: string | null
+): Promise<void> {
+  setLocalOnboardingState({ step: 'complete' }, email)
   _postComplete(token ?? null)
 }
 
 /** Skip onboarding locally and persist to server. */
-export async function skipOnboarding(token?: string | null): Promise<void> {
-  setLocalOnboardingState({ step: 'complete', skipped: true })
+export async function skipOnboarding(
+  token?: string | null,
+  email?: string | null
+): Promise<void> {
+  setLocalOnboardingState({ step: 'complete', skipped: true }, email)
   _postComplete(token ?? null)
 }
 
