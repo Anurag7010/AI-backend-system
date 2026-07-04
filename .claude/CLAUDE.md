@@ -204,11 +204,12 @@ Three interconnected systems:
 ## Deployment
 
 ### Infrastructure
-- Python backend: Railway (Dockerfile, persistent volume for ChromaDB)
+- Python backend: Hugging Face Spaces, Docker SDK, free CPU tier (16GB RAM) — showcase deployment
 - Next.js frontend: Vercel
 - PostgreSQL: Supabase
-- ChromaDB: Railway persistent volume at /app/chroma_db
-- Uptime monitoring: UptimeRobot (5-min interval)
+- ChromaDB: EPHEMERAL on HF Spaces free tier — documents wiped on restart/redeploy (accepted tradeoff)
+- Uptime monitoring: UptimeRobot (5-min interval; pings keep the Space awake past its 48h sleep)
+- Railway remains documented as the paid alternative with a persistent volume (railway.toml)
 
 ### Tiered API Access
 - Owner (rautanurag9@gmail.com): OpenAI GPT-4o + text-embedding-3-small
@@ -218,36 +219,34 @@ Three interconnected systems:
 
 ### Production Environment Variables
 
-**Railway (Python backend):**
+**HF Spaces (Python backend — secrets + variables):**
 OPENAI_API_KEY, GROQ_API_KEY, TAVILY_API_KEY, OWNER_EMAIL,
-MODEL_NAME, FAST_MODEL, TEMPERATURE, MAX_TOKENS,
-LOG_LEVEL=WARNING, ENVIRONMENT=production,
-FRONTEND_URL=<vercel-url>, INTERNAL_API_KEY=<random-hex>,
-RELEVANCE_THRESHOLD, MAX_QUERY_CHARS
+MODEL_NAME, FAST_MODEL, LOG_LEVEL=WARNING, ENVIRONMENT=production,
+FRONTEND_URL=<vercel-url>, INTERNAL_API_KEY=<random-hex>
 
 **Vercel (Next.js):**
 DATABASE_URL=<supabase-url>, JWT_SECRET, JWT_REFRESH_SECRET,
-NEXT_PUBLIC_AI_BACKEND_URL=<railway-url>, AI_BACKEND_URL=<railway-url>,
+NEXT_PUBLIC_AI_BACKEND_URL=<hf-space-url>, AI_BACKEND_URL=<hf-space-url>,
 AI_BACKEND_API_KEY=<matches-INTERNAL_API_KEY>,
 NEXT_PUBLIC_APP_URL=<vercel-url>, LOG_LEVEL=warn
 
 ### Deployment Steps (abbreviated)
 1. Create Supabase project → get DATABASE_URL
 2. Run drizzle-kit push against Supabase
-3. Deploy ai-backend to Railway with Dockerfile
-4. Add Railway volume at /app/chroma_db
-5. Set all Railway env vars
-6. Deploy web-app to Vercel
-7. Set all Vercel env vars
-8. Set FRONTEND_URL on Railway → redeploy
-9. Register owner account
-10. Run production smoke test (scripts/production-smoke-test.sh)
-11. Configure UptimeRobot monitors
+3. Create HF Space (Docker SDK, CPU basic) → set secrets/variables
+4. huggingface-cli upload ai-backend/ to the Space (NEVER upload .env)
+5. Deploy web-app to Vercel
+6. Set all Vercel env vars
+7. Update FRONTEND_URL secret on the Space (auto-restarts)
+8. Register owner account
+9. Run production smoke test (scripts/production-smoke-test.sh)
+10. Configure UptimeRobot monitors
 
 ### Known Production Limitations
-- Rate limiter resets on Railway restart (in-memory)
+- ChromaDB is ephemeral on HF Spaces free tier — documents wiped on restart/redeploy
+- Rate limiter resets on restart (in-memory)
 - Single uvicorn worker (ChromaDB file locking)
-- Railway free tier sleeps after 30min inactivity
+- Container runs as non-root UID 1000 (HF Spaces requirement; HF_HOME=/app/.cache/huggingface)
 - MCP server only works locally (stdio transport, not exposed)
 
 ## Framework Decisions (After Day 14)

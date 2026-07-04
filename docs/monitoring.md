@@ -8,7 +8,7 @@
 
 **Monitor 1 — Python Backend**
 - Type: HTTP(s)
-- URL: `https://<railway-url>/health`
+- URL: `https://<user>-docmind-backend.hf.space/health`
 - Interval: 5 minutes
 - Alert: Email on downtime
 
@@ -32,8 +32,10 @@
 
 If `status` is not `"ok"` or HTTP is not 200, UptimeRobot alerts.
 
-### Railway-specific notes
-- Railway free tier sleeps after 30 min of inactivity
-- First request after sleep takes ~15s (cold start + model loading)
-- UptimeRobot's 5-min pings keep the service warm
-- If using Railway's free tier (not Pro), expect occasional cold starts
+### HF Spaces-specific notes
+- Free Spaces sleep after 48h with no requests — UptimeRobot's 5-min pings
+  keep the Space awake indefinitely
+- A restarted/redeployed Space wipes ChromaDB (no persistent storage on the
+  free tier) — documents must be re-ingested
+- First request after a rebuild takes a few extra seconds (model loads into
+  memory from the image; no download)

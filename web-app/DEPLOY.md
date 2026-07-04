@@ -4,7 +4,7 @@
 - Vercel account (vercel.com)
 - Vercel CLI installed: `npm install -g vercel`
 - Supabase account for production PostgreSQL
-- Railway backend already deployed with its URL (see `ai-backend/DEPLOY.md`)
+- Backend already deployed with its URL (HF Spaces — see `ai-backend/DEPLOY.md`)
 
 ## Step 1 — Create Supabase Database
 
@@ -50,9 +50,9 @@ In Vercel dashboard → Settings → Environment Variables, add ALL of these for
 | `DATABASE_URL` | Your Supabase connection string |
 | `JWT_SECRET` | Generate: `openssl rand -base64 32` |
 | `JWT_REFRESH_SECRET` | Generate: `openssl rand -base64 32` (different from JWT_SECRET) |
-| `NEXT_PUBLIC_AI_BACKEND_URL` | Your Railway backend URL (e.g. `https://docmind-backend-xxx.up.railway.app`) |
+| `NEXT_PUBLIC_AI_BACKEND_URL` | Your backend URL (e.g. `https://<user>-docmind-backend.hf.space`) |
 | `AI_BACKEND_URL` | Same as above (server-side usage) |
-| `AI_BACKEND_API_KEY` | The INTERNAL_API_KEY you set on Railway |
+| `AI_BACKEND_API_KEY` | The INTERNAL_API_KEY secret you set on the backend |
 | `NEXT_PUBLIC_APP_URL` | Your Vercel URL (e.g. `https://docmind.vercel.app`) |
 | `LOG_LEVEL` | `warn` |
 
@@ -62,14 +62,11 @@ In Vercel dashboard → Settings → Environment Variables, add ALL of these for
 vercel --prod
 ```
 
-## Step 6 — Update Railway CORS
+## Step 6 — Update Backend CORS
 
-Now that you have the Vercel URL:
-```bash
-cd ai-backend
-railway variables set FRONTEND_URL=https://<your-vercel-url>
-railway up
-```
+Now that you have the Vercel URL, update the `FRONTEND_URL` secret:
+- **HF Spaces**: Space → Settings → Variables and secrets → edit `FRONTEND_URL` (Space restarts automatically)
+- **Railway**: `railway variables set FRONTEND_URL=https://<your-vercel-url> && railway up`
 
 ## Step 7 — Register Owner Account
 
