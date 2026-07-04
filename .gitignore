@@ -162,4 +162,22 @@ external/
 # Next.js
 .next/
 out/
+*.tsbuildinfo
+
+# Runtime output
+logs/
+
+# Agent/browser session artifacts
+.playwright-mcp/
+
+# Internal working material (kept locally, not published)
+prompt.md
+docs/syllabus.md
+docs/revision-note.md
+docs/health-report-phase2.md
+docs/eval-results-phase3.md
+.claude/commands/
+.claude/settings.local.json
+/requirements.txt
+/package-lock.json
 
