@@ -1,11 +1,14 @@
 FROM python:3.11-slim
 
 # System dependencies for PDF parsing (unstructured[pdf] needs poppler,
-# and its OpenCV dependency needs libGL/libglib at import time)
+# its OpenCV dependency needs libGL/libglib at import time, and the
+# strategy="hi_res" partitioner needs tesseract-ocr for OCR on embedded
+# images/figures — without it, ingestion fails on any PDF with figures)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpoppler-cpp-dev \
     poppler-utils \
+    tesseract-ocr \
     libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
