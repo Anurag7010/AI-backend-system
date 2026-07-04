@@ -1,5 +1,5 @@
 ---
-title: DocMind Backend
+title: Prometheon Backend
 emoji: 📚
 colorFrom: indigo
 colorTo: purple
@@ -8,10 +8,9 @@ app_port: 8000
 pinned: false
 ---
 
-# DocMind — AI Backend
+# Prometheon — AI Backend
 
-FastAPI backend for DocMind: RAG-powered document Q&A with tiered API access,
-ReAct agent, guardrails, caching, and observability.
+FastAPI backend for Prometheon: RAG-powered document Q&A with tiered API access, ReAct agent, guardrails, caching, and observability.
 
 - `POST /ask` — question answering (auto-routed: RAG pipeline or agent)
 - `POST /ask/stream` — SSE token streaming

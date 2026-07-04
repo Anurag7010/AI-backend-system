@@ -19,7 +19,7 @@
 
 ### 1. Create the Space
 On huggingface.co: **New Space** →
-- Name: `docmind-backend`
+- Name: `prometheon-backend`
 - SDK: **Docker** (blank template)
 - Hardware: **CPU basic (free)**
 - Visibility: Public (private Spaces work too; the API stays protected by X-API-Key either way)
@@ -51,7 +51,7 @@ From the project root — note the excludes; **never upload `.env`**:
 ```bash
 huggingface-cli login   # paste a write token from hf.co/settings/tokens
 
-huggingface-cli upload <your-hf-username>/docmind-backend ./ai-backend . \
+huggingface-cli upload Anurag0710/prometheon-backend ./ai-backend . \
   --repo-type space \
   --exclude ".env" --exclude ".env.*" --exclude "chroma_db/*" \
   --exclude "logs/*" --exclude "external/*" --exclude "venv/*" \
@@ -64,10 +64,10 @@ Space's **Logs** tab.
 
 ### 4. Verify
 ```bash
-curl https://<your-username>-docmind-backend.hf.space/health | jq '.status'
+curl https://Anurag0710-prometheon-backend.hf.space/health | jq '.status'
 # "ok"
 
-curl "https://<your-username>-docmind-backend.hf.space/retrieve?query=test&top_k=1" \
+curl "https://Anurag0710-prometheon-backend.hf.space/retrieve?query=test&top_k=1" \
   -H "X-API-Key: <your-INTERNAL_API_KEY>" \
   -H "X-User-Email: someone@example.com"
 # {"chunks":[],"trace_id":"..."} — empty store is expected before ingestion
@@ -87,7 +87,7 @@ ingested documents (ephemeral storage).
 
 Config lives in `railway.toml`. Summary:
 
-1. `railway login && railway init --name docmind-backend` (from `ai-backend/`)
+1. `railway login && railway init --name prometheon-backend` (from `ai-backend/`)
 2. Dashboard → Settings → Volumes: mount `/app/chroma_db` (1GB) — this is what
    makes documents survive restarts, and why this option costs money
 3. Set the same env vars as the HF Spaces table above via `railway variables set`

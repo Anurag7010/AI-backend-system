@@ -8,7 +8,7 @@
 
 **Monitor 1 — Python Backend**
 - Type: HTTP(s)
-- URL: `https://<user>-docmind-backend.hf.space/health`
+- URL: `https://<user>-prometheon-backend.hf.space/health`
 - Interval: 5 minutes
 - Alert: Email on downtime
 

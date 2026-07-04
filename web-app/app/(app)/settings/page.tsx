@@ -90,7 +90,7 @@ function AccountTab() {
               const url = URL.createObjectURL(blob)
               const a = document.createElement('a')
               a.href = url
-              a.download = 'docmind-export.json'
+              a.download = 'prometheon-export.json'
               a.click()
               URL.revokeObjectURL(url)
             }

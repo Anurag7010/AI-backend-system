@@ -9,7 +9,7 @@
 ## Step 1 — Create Supabase Database
 
 1. Go to supabase.com → New Project
-2. Name: `docmind-prod`
+2. Name: `prometheon-prod`
 3. Region: closest to your Railway backend
 4. Copy the connection string from:
    Settings → Database → Connection string → URI
@@ -50,10 +50,10 @@ In Vercel dashboard → Settings → Environment Variables, add ALL of these for
 | `DATABASE_URL` | Your Supabase connection string |
 | `JWT_SECRET` | Generate: `openssl rand -base64 32` |
 | `JWT_REFRESH_SECRET` | Generate: `openssl rand -base64 32` (different from JWT_SECRET) |
-| `NEXT_PUBLIC_AI_BACKEND_URL` | Your backend URL (e.g. `https://<user>-docmind-backend.hf.space`) |
+| `NEXT_PUBLIC_AI_BACKEND_URL` | Your backend URL (e.g. `https://<user>-prometheon-backend.hf.space`) |
 | `AI_BACKEND_URL` | Same as above (server-side usage) |
 | `AI_BACKEND_API_KEY` | The INTERNAL_API_KEY secret you set on the backend |
-| `NEXT_PUBLIC_APP_URL` | Your Vercel URL (e.g. `https://docmind.vercel.app`) |
+| `NEXT_PUBLIC_APP_URL` | Your Vercel URL (e.g. `https://prometheon.vercel.app`) |
 | `LOG_LEVEL` | `warn` |
 
 ## Step 5 — Redeploy with Environment Variables

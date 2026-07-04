@@ -12,7 +12,7 @@ const DEFAULT_STATE: OnboardingState = {
   skipped: false,
 }
 
-const KEY = 'docmind_onboarding'
+const KEY = 'prometheon_onboarding'
 
 /** Read onboarding state from localStorage (client-side only). */
 export function getLocalOnboardingState(): OnboardingState {

@@ -22,7 +22,7 @@ check() {
 }
 
 echo "═══════════════════════════════════════"
-echo "  DocMind Production Smoke Test"
+echo "  Prometheon Production Smoke Test"
 echo "  Frontend: $FRONTEND_URL"
 echo "  Backend:  $BACKEND_URL"
 echo "═══════════════════════════════════════"

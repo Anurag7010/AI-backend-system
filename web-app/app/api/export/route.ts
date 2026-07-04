@@ -33,7 +33,7 @@ async function exportHandler(req: NextRequest, context: RequestContext): Promise
   return new NextResponse(JSON.stringify(exportData, null, 2), {
     headers: {
       'Content-Type': 'application/json',
-      'Content-Disposition': `attachment; filename="docmind-export-${dateStr}.json"`,
+      'Content-Disposition': `attachment; filename="prometheon-export-${dateStr}.json"`,
     },
   })
 }
