@@ -109,7 +109,7 @@ export function DashboardClient({
   const insights = [
     {
       text: totalDocs > 0
-        ? `Your document index has grown to ${totalDocs} documents`
+        ? `Your document index has grown to ${totalDocs} ${totalDocs === 1 ? 'document' : 'documents'}`
         : 'Upload your first document to get started',
       label: 'Document Index',
     },
@@ -121,7 +121,7 @@ export function DashboardClient({
     },
     {
       text: queriesToday > 0
-        ? `${queriesToday} queries today — knowledge is flowing`
+        ? `${queriesToday} ${queriesToday === 1 ? 'query' : 'queries'} today — knowledge is flowing`
         : 'No queries today yet — ask the oracle something',
       label: 'Query Activity',
     },

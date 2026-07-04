@@ -67,7 +67,7 @@ export default function MemoryPanel() {
             Facts the AI has learned about you across conversations
           </p>
         </div>
-        <Badge variant="neutral">{memories.length} memories</Badge>
+        <Badge variant="neutral">{memories.length} {memories.length === 1 ? 'memory' : 'memories'}</Badge>
       </div>
 
       {error && (

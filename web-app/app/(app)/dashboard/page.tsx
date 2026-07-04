@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { queriesRepository, documentsRepository } from '@/db'
+import { getDashboardCharts } from '@/lib/dashboard-charts'
 import { DashboardClient } from './DashboardClient'
 import type { Metadata } from 'next'
 
@@ -33,18 +34,20 @@ export default async function DashboardPage() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const authHeader = { Authorization: `Bearer ${session.accessToken}` }
 
+  // Charts come straight from the DB helper — no HTTP round-trip to our own
+  // API. Stats still proxy through the API (it aggregates the Python backend)
+  // but must be no-store: an explicit revalidate would cache one user's
+  // authenticated response for everyone.
   const [statsRes, chartsRes] = await Promise.allSettled([
-    fetch(`${appUrl}/api/dashboard/stats`, { headers: authHeader, next: { revalidate: 30 } }),
-    fetch(`${appUrl}/api/dashboard/charts`, { headers: authHeader, next: { revalidate: 60 } }),
+    fetch(`${appUrl}/api/dashboard/stats`, { headers: authHeader, cache: 'no-store' }),
+    getDashboardCharts(session.userId),
   ])
 
   const statsData = statsRes.status === 'fulfilled' && statsRes.value.ok
     ? await statsRes.value.json() as { ai: AiStats | null; queries: { total: number; last24h: number }; documents: { total: number; ingested: number; failed: number; pending: number } }
     : null
 
-  const charts = chartsRes.status === 'fulfilled' && chartsRes.value.ok
-    ? await chartsRes.value.json() as ChartsData
-    : null
+  const charts: ChartsData | null = chartsRes.status === 'fulfilled' ? chartsRes.value : null
 
   const totalDocs = allDocuments.length
   const ingestedDocs = allDocuments.filter(d => d.status === 'ingested').length
