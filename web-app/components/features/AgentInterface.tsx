@@ -93,11 +93,13 @@ function FlameIcon() {
 export default function AgentInterface() {
   const { state, steps, isRunning, run, reset } = useAgent()
   const [query, setQuery] = useState('')
+  // The input clears on submit, so the recap needs its own copy of what ran.
+  const [submittedQuery, setSubmittedQuery] = useState('')
   const stepsEndRef = useRef<HTMLDivElement>(null)
 
   async function handleSuggestionClick(text: string) {
     if (isRunning) return
-    setQuery(text)
+    setSubmittedQuery(text)
     await run(text)
   }
 
@@ -111,6 +113,7 @@ export default function AgentInterface() {
     if (!query.trim() || isRunning) return
     const q = query.trim()
     setQuery('')
+    setSubmittedQuery(q)
     await run(q)
   }
 
@@ -222,7 +225,7 @@ export default function AgentInterface() {
               <div className="mb-6 p-4 rounded-xl bg-forge-dark border border-stone-mid/40">
                 <p className="text-ash-gray text-[10px] tracking-widest uppercase mb-1">Query</p>
                 <p className="text-sm text-parchment/85">
-                  {query || (steps[0]?.actionInput ? JSON.stringify(steps[0].actionInput) : 'Running...')}
+                  {submittedQuery || 'Running...'}
                 </p>
               </div>
             )}
