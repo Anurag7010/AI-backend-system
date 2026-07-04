@@ -46,17 +46,22 @@ And as **Variables** (non-secret):
 | `LOG_LEVEL` | `WARNING` |
 
 ### 3. Upload the backend
-From the project root — note the excludes; **never upload `.env`**:
+
+**Always deploy through the script — never with a raw upload command:**
 
 ```bash
 huggingface-cli login   # paste a write token from hf.co/settings/tokens
 
-huggingface-cli upload Anurag0710/prometheon-backend ./ai-backend . \
-  --repo-type space \
-  --exclude ".env" --exclude ".env.*" --exclude "chroma_db/*" \
-  --exclude "logs/*" --exclude "external/*" --exclude "venv/*" \
-  --exclude "__pycache__/*" --exclude "*/__pycache__/*" --exclude ".pytest_cache/*"
+./scripts/deploy-backend.sh   # from the project root
 ```
+
+The script uploads with the correct excludes and then **scans the Space's
+file tree to verify no `.env` file shipped**, failing loudly if one did.
+
+> ⚠️ The Space is public and old git revisions stay fetchable even after a
+> file is deleted — a leaked `.env` means immediately rotating every key in
+> it. This has happened once (2026-07-04, via a raw upload without a
+> post-check); the script's post-upload scan is the guard against a repeat.
 
 The Space builds the Dockerfile automatically (~10 min first time — it bakes
 the sentence-transformers model into the image). Watch the build in the
@@ -78,7 +83,7 @@ Update the `FRONTEND_URL` secret to the real Vercel URL (Space restarts
 automatically) so CORS allows the frontend.
 
 ### 6. Redeploying after code changes
-Re-run the `huggingface-cli upload` command from step 3. Remember: this wipes
+Re-run `./scripts/deploy-backend.sh` (step 3). Remember: this wipes
 ingested documents (ephemeral storage).
 
 ---
