@@ -297,7 +297,7 @@ export function ChatInterface({ documentId: _documentId, documentName }: ChatInt
                   : message.sources
                 const retrievalQuality = isLastAssistant && state.status === 'success'
                   ? state.data?.retrievalQuality
-                  : undefined
+                  : message.retrievalQuality
                 const routedTo = isLastAssistant && state.status === 'success'
                   ? state.data?.routedTo
                   : undefined
@@ -317,7 +317,7 @@ export function ChatInterface({ documentId: _documentId, documentName }: ChatInt
                             const lastUserMsg = [...messages]
                               .reverse()
                               .find((m) => m.role === 'user')
-                            if (lastUserMsg) askStream(lastUserMsg.content)
+                            if (lastUserMsg) askStream(lastUserMsg.content, conversationId ? { conversationId } : undefined)
                           }
                         : undefined
                     }

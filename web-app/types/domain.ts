@@ -83,6 +83,9 @@ export type Message = {
   readonly role: 'user' | 'assistant' | 'warning'
   readonly content: string
   readonly sources?: readonly Source[]
+  // Kept on the message so the confidence badge survives later exchanges —
+  // the live AskResponse state only describes the newest answer.
+  readonly retrievalQuality?: import('./api').RetrievalQuality
 }
 
 export type Source = {

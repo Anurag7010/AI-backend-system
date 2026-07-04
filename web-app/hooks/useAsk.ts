@@ -90,7 +90,12 @@ export function useAsk(): {
       // appears in the chat. The error surfaces in state.error instead.
       // Guardrail rejections and no-results are visually distinguished via 'warning' role.
       const messageRole = (data.guardrailRejected || data.noResults) ? 'warning' : 'assistant'
-      setMessages(prev => [...prev, { role: messageRole, content: data.answer, sources: data.sources }])
+      setMessages(prev => [...prev, {
+        role: messageRole,
+        content: data.answer,
+        sources: data.sources,
+        retrievalQuality: data.retrievalQuality,
+      }])
 
       return data
     })
@@ -191,7 +196,8 @@ export function useAsk(): {
         },
       }
 
-      // Attach sources and apply warning role if guardrail rejected or no results
+      // Attach sources and quality to the message itself so they survive
+      // later exchanges; apply warning role if guardrail rejected or no results
       const streamedMessageRole = (synthResponse.guardrailRejected || synthResponse.noResults) ? 'warning' : 'assistant'
       setMessages(prev => {
         if (prev.length === 0) return prev
@@ -199,7 +205,12 @@ export function useAsk(): {
         if (!last || last.role !== 'assistant') return prev
         return [
           ...prev.slice(0, -1),
-          { ...last, role: streamedMessageRole, ...(sources.length > 0 ? { sources } : {}) },
+          {
+            ...last,
+            role: streamedMessageRole,
+            ...(sources.length > 0 ? { sources } : {}),
+            retrievalQuality: synthResponse.retrievalQuality,
+          },
         ]
       })
 
