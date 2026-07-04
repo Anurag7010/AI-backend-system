@@ -45,8 +45,10 @@ async function persistConversationTurn(
     await updateConversationTitle(conversation.id, userId, query.slice(0, 50))
   }
 
+  // Awaited (caller runs in the stream's flush): the Python endpoint queues the
+  // actual extraction as a background task, so this returns quickly.
   const aiBackendUrl = process.env.AI_BACKEND_URL ?? ''
-  fetch(`${aiBackendUrl}/memories/extract`, {
+  await fetch(`${aiBackendUrl}/memories/extract`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -127,8 +129,14 @@ async function streamHandler(
 
   // TransformStream intercepts done events to persist the answer while passing
   // all bytes through unchanged. Buffer by \n\n to handle SSE events split across chunks.
+  // Persistence happens in flush(), not transform(): the response stream cannot close
+  // until flush resolves, so the serverless function stays alive until the DB writes
+  // land. Fire-and-forget writes here raced function freeze and lost messages.
   let lineBuffer = ''
   let accumulatedAnswer = ''
+  let doneLatencyMs = 0
+  let doneTraceId = ''
+  let sawDone = false
 
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
@@ -144,27 +152,30 @@ async function streamHandler(
           if (data['type'] === 'token' && typeof data['content'] === 'string') {
             accumulatedAnswer += data['content']
           } else if (data['type'] === 'done') {
-            const latencyMs = typeof data['latency_ms'] === 'number' ? Math.round(data['latency_ms']) : 0
-            const traceId = typeof data['trace_id'] === 'string' ? data['trace_id'] : ''
-            // Fire and forget — do not block the stream
-            queriesRepository
-              .updateAnswer(queryRecord.id, accumulatedAnswer, latencyMs, { traceId })
-              .catch((err: unknown) => logError(err instanceof Error ? err : new Error(String(err))))
-            if (conversation) {
-              persistConversationTurn(
-                conversation,
-                userId,
-                body.query,
-                accumulatedAnswer,
-                effectiveHistory
-              ).catch((err: unknown) => logError(err instanceof Error ? err : new Error(String(err))))
-            }
+            sawDone = true
+            doneLatencyMs = typeof data['latency_ms'] === 'number' ? Math.round(data['latency_ms']) : 0
+            doneTraceId = typeof data['trace_id'] === 'string' ? data['trace_id'] : ''
           }
         } catch {
           // Malformed JSON event — pass through unchanged
         }
       }
       controller.enqueue(chunk)
+    },
+    async flush() {
+      if (!sawDone) return
+      try {
+        await queriesRepository.updateAnswer(
+          queryRecord.id, accumulatedAnswer, doneLatencyMs, { traceId: doneTraceId }
+        )
+        if (conversation) {
+          await persistConversationTurn(
+            conversation, userId, body.query, accumulatedAnswer, effectiveHistory
+          )
+        }
+      } catch (err: unknown) {
+        logError(err instanceof Error ? err : new Error(String(err)))
+      }
     },
   })
 

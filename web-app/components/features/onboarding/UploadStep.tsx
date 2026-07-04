@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/cn'
@@ -21,6 +21,14 @@ export function UploadStep({ onComplete, onSkip, onBack }: UploadStepProps) {
   const [error, setError] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  // Stops the ingestion poll when this step unmounts (e.g. the user skips
+  // onboarding mid-upload) — a surviving poll closure would keep firing
+  // requests and overwrite the completed onboarding state in localStorage.
+  const unmountedRef = useRef(false)
+  useEffect(() => {
+    unmountedRef.current = false
+    return () => { unmountedRef.current = true }
+  }, [])
 
   async function handleFile(file: File) {
     if (!file.name.endsWith('.pdf')) {
@@ -52,6 +60,7 @@ export function UploadStep({ onComplete, onSkip, onBack }: UploadStepProps) {
       // Poll until ingested
       let attempts = 0
       const poll = async (): Promise<void> => {
+        if (unmountedRef.current) return
         attempts++
         if (attempts > 30) {
           setStatus('error')
@@ -61,6 +70,7 @@ export function UploadStep({ onComplete, onSkip, onBack }: UploadStepProps) {
         const r = await fetch(`/api/documents/${id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         })
+        if (unmountedRef.current) return
         if (r.ok) {
           // Route responds { data: document, requestId }
           const docBody = (await r.json()) as { data?: { status?: string } }

@@ -43,6 +43,9 @@ export function OnboardingFlow({ email, onDone }: OnboardingFlowProps) {
   }, [onDone, email])
 
   const goTo = (s: OnboardingStep) => {
+    // Never downgrade a finished flow: a stale async callback (e.g. an upload
+    // poll that resolves after the user skipped) must not reopen onboarding.
+    if (getLocalOnboardingState(email).step === 'complete') return
     setStep(s)
     setLocalOnboardingState({ step: s }, email)
   }
