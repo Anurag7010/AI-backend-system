@@ -70,7 +70,9 @@ class _RAGAdapter:
         """Delegate to module-level retrieve()."""
         from rag.rag_interface import retrieve as _retrieve
 
-        return await _retrieve(query=query, top_k=top_k, strategy=strategy, tier_config=self._tier_config)
+        return await _retrieve(
+            query=query, top_k=top_k, strategy=strategy, tier_config=self._tier_config
+        )
 
 
 # ── ChromaDB document repository ──────────────────────────────────────────────
@@ -413,8 +415,8 @@ async def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
             from rag.rag_interface import (
                 NO_RESULTS_ANSWER,
                 compute_retrieval_quality,
-                retrieve as rag_retrieve,
             )
+            from rag.rag_interface import retrieve as rag_retrieve
 
             chunks: list[dict] = await rag_retrieve(
                 body.query, body.top_k, body.strategy, tier_config=tier_config
@@ -622,7 +624,9 @@ async def retrieve(
     try:
         from rag.rag_interface import retrieve as rag_retrieve
 
-        raw_chunks = await rag_retrieve(query=query, top_k=top_k, strategy=strategy, tier_config=tier_config)
+        raw_chunks = await rag_retrieve(
+            query=query, top_k=top_k, strategy=strategy, tier_config=tier_config
+        )
 
         # Check if retrieve() returned an error list
         if raw_chunks and "error" in raw_chunks[0]:

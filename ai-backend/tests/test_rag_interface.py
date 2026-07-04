@@ -214,3 +214,48 @@ class TestIngest:
         assert "status"      in result
         assert "chunk_count" in result
         assert "error"       in result
+
+
+# ── _store_documents() resilience ─────────────────────────────────────────────
+
+class TestStoreDocuments:
+    """Dual-collection writes must be individually best-effort.
+
+    Free tier retrieves only from the HuggingFace collection, so an OpenAI
+    quota failure (429 insufficient_quota) must not sink the whole ingest —
+    that was a live outage: every upload 502'd for every tier."""
+
+    def _deps(self, chroma_mock):
+        return {
+            "OpenAIEmbeddings": MagicMock(),
+            "Chroma": chroma_mock,
+            "Document": MagicMock(),
+        }
+
+    @patch("langchain_community.embeddings.HuggingFaceEmbeddings", MagicMock())
+    def test_openai_write_failure_does_not_fail_ingest(self):
+        """OpenAI store write raising (e.g. quota 429) must not raise if HF write works."""
+        from rag.rag_interface import _store_documents
+        chroma = MagicMock()
+        # First call = OpenAI collection (fails), second = HF collection (succeeds)
+        chroma.from_documents.side_effect = [Exception("429 insufficient_quota"), MagicMock()]
+        _store_documents([MagicMock()], self._deps(chroma))  # must not raise
+        assert chroma.from_documents.call_count == 2
+
+    @patch("langchain_community.embeddings.HuggingFaceEmbeddings", MagicMock())
+    def test_both_writes_failing_raises(self):
+        """If neither collection accepted the documents, ingest must fail loudly."""
+        from rag.rag_interface import _store_documents
+        chroma = MagicMock()
+        chroma.from_documents.side_effect = Exception("both stores down")
+        with pytest.raises(RuntimeError):
+            _store_documents([MagicMock()], self._deps(chroma))
+
+    @patch("langchain_community.embeddings.HuggingFaceEmbeddings", MagicMock())
+    def test_hf_write_failure_still_ok_when_openai_succeeds(self):
+        """Mirror case: HF store failure alone must not fail ingest."""
+        from rag.rag_interface import _store_documents
+        chroma = MagicMock()
+        chroma.from_documents.side_effect = [MagicMock(), Exception("hf model load failed")]
+        _store_documents([MagicMock()], self._deps(chroma))  # must not raise
+        assert chroma.from_documents.call_count == 2

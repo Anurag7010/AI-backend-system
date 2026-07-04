@@ -219,16 +219,27 @@ def _summarise_chunks(chunks: list, metadata: dict, deps: dict) -> list:
 
 
 def _store_documents(documents: list, deps: dict) -> None:
-    """Persist LangChain Documents into both ChromaDB collections (OpenAI + HuggingFace)."""
+    """Persist LangChain Documents into both ChromaDB collections (OpenAI + HuggingFace).
+
+    Each write is best-effort: one collection failing (e.g. OpenAI quota 429)
+    must not sink the whole ingest, because each tier only needs its own store.
+    Raises RuntimeError only when BOTH writes fail.
+    """
+    errors: list[str] = []
+
     # Owner collection — OpenAI embeddings
-    embedding_model_openai = deps["OpenAIEmbeddings"](model=_EMBED_MODEL)
-    deps["Chroma"].from_documents(
-        documents=documents,
-        embedding=embedding_model_openai,
-        persist_directory=_PERSIST_DIR,
-        collection_metadata={"hnsw:space": "cosine"},
-    )
-    logger.info(f"[rag] Stored {len(documents)} docs in OpenAI vectorstore")
+    try:
+        embedding_model_openai = deps["OpenAIEmbeddings"](model=_EMBED_MODEL)
+        deps["Chroma"].from_documents(
+            documents=documents,
+            embedding=embedding_model_openai,
+            persist_directory=_PERSIST_DIR,
+            collection_metadata={"hnsw:space": "cosine"},
+        )
+        logger.info(f"[rag] Stored {len(documents)} docs in OpenAI vectorstore")
+    except Exception as exc:
+        logger.warning(f"[rag] OpenAI vectorstore ingest failed (non-fatal): {exc}")
+        errors.append(f"openai: {exc}")
 
     # Free-tier collection — HuggingFace local embeddings (no API cost)
     try:
@@ -244,10 +255,13 @@ def _store_documents(documents: list, deps: dict) -> None:
         )
         logger.info(f"[rag] Stored {len(documents)} docs in HuggingFace vectorstore")
     except Exception as exc:
-        # Log but don't fail ingest — owner can still use OpenAI collection
         logger.warning(f"[rag] HuggingFace vectorstore ingest failed (non-fatal): {exc}")
+        errors.append(f"huggingface: {exc}")
 
-    # Invalidate both caches — only reached when OpenAI write succeeded
+    if len(errors) == 2:
+        raise RuntimeError(f"Both vectorstore writes failed — {'; '.join(errors)}")
+
+    # Invalidate both caches — at least one store now has new documents
     _invalidate_vectorstore()
     _invalidate_vectorstore_hf()
 
@@ -527,8 +541,10 @@ async def retrieve(
     from core.cache import make_cache_key, retrieval_cache
 
     cache_key = make_cache_key(
-        query=query, top_k=resolved_top_k, strategy=resolved_strategy,
-        tier=tier_config.tier.value if tier_config else ""
+        query=query,
+        top_k=resolved_top_k,
+        strategy=resolved_strategy,
+        tier=tier_config.tier.value if tier_config else "",
     )
     cached = retrieval_cache.get(cache_key)
     if cached is not None:
@@ -768,7 +784,9 @@ async def ask(
 
         total_ms = (time.perf_counter() - t_total) * 1000
         log_pipeline_event(
-            event="pipeline_end", trace_id=tid, metadata={"total_ms": round(total_ms, 2), "status": "ok"}
+            event="pipeline_end",
+            trace_id=tid,
+            metadata={"total_ms": round(total_ms, 2), "status": "ok"},
         )
 
         return {
