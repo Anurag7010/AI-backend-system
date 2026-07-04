@@ -16,12 +16,17 @@ echo "==> Pre-flight: refusing to continue if hf CLI is not authenticated"
 huggingface-cli whoami >/dev/null
 
 echo "==> Uploading ai-backend/ to $SPACE"
+# All patterns MUST be values of a single --exclude flag: repeating the flag
+# makes argparse keep only the last occurrence, which silently dropped the
+# .env exclusion and shipped secrets to the public Space on 2026-07-04.
 huggingface-cli upload "$SPACE" ./ . \
   --repo-type space \
-  --exclude ".env" --exclude ".env.*" --exclude "*/.env" --exclude "**/.env" \
-  --exclude "chroma_db/*" --exclude "**/chroma_db/*" \
-  --exclude "logs/*" --exclude "external/*" --exclude "venv/*" \
-  --exclude "__pycache__/*" --exclude "*/__pycache__/*" --exclude ".pytest_cache/*"
+  --exclude \
+    ".env" ".env.*" "*/.env" "**/.env" \
+    "chroma_db/*" "**/chroma_db/*" \
+    "logs/*" "external/*" "venv/*" \
+    "__pycache__/*" "**/__pycache__/*" ".pytest_cache/*" "**/.pytest_cache/*" \
+    "rag/db/*" "tests/__pycache__/*"
 
 echo "==> Post-upload safety check: scanning Space file tree for env files"
 TREE=$(curl -sf -L "https://huggingface.co/api/spaces/${SPACE}/tree/main?recursive=true")
