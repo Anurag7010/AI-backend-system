@@ -10,7 +10,7 @@ export function useAsk(): {
   state: AsyncState<AskResponse>
   messages: Message[]
   ask: (query: string) => Promise<void>
-  askStream: (query: string) => Promise<boolean>
+  askStream: (query: string, options?: { conversationId?: string }) => Promise<boolean>
   clearHistory: () => void
   loadHistory: (msgs: Message[]) => void
   isStreaming: boolean
@@ -96,7 +96,10 @@ export function useAsk(): {
     })
   }, [messages, execute, abortCtrl])
 
-  const askStream = useCallback(async (query: string): Promise<boolean> => {
+  const askStream = useCallback(async (
+    query: string,
+    options?: { conversationId?: string }
+  ): Promise<boolean> => {
     abortCtrl.abort()
     abortCtrl.reset()
     const currentSignal = abortCtrl.signal
@@ -130,6 +133,7 @@ export function useAsk(): {
         query,
         historyBeforeThisMessage,
         currentSignal,
+        options?.conversationId ? { conversationId: options.conversationId } : undefined,
       )
 
       for await (const event of generator) {

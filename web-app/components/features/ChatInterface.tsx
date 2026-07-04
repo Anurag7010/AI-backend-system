@@ -140,7 +140,7 @@ export function ChatInterface({ documentId: _documentId, documentName }: ChatInt
     setQuery('')
     const convId = await ensureConversation()
     const isFirstMessage = messages.length === 0
-    const succeeded = await askStream(q)
+    const succeeded = await askStream(q, convId ? { conversationId: convId } : undefined)
     if (isFirstMessage && convId && succeeded) {
       autoTitle(convId, q)
     }
@@ -163,7 +163,7 @@ export function ChatInterface({ documentId: _documentId, documentName }: ChatInt
     setQuery(text)
     const convId = await ensureConversation()
     const isFirstMessage = messages.length === 0
-    const succeeded = await askStream(text)
+    const succeeded = await askStream(text, convId ? { conversationId: convId } : undefined)
     if (isFirstMessage && convId && succeeded) {
       autoTitle(convId, text)
     }

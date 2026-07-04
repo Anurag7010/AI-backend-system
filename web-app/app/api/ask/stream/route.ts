@@ -13,6 +13,8 @@ import { queriesRepository } from '@/db'
 import { backendClient } from '@/lib/backend-client'
 import { BackendError, mapBackendError } from '@/lib/backend-error-mapper'
 import { logError } from '@/lib/error-logger'
+import { getConversationMessages, addMessage } from '@/db/repositories/messages'
+import { findConversationById, updateConversationTitle } from '@/db/repositories/conversations'
 import { MAX_QUERY_LENGTH } from '@/lib/constants'
 
 const AskSchema = z.object({
@@ -24,7 +26,42 @@ const AskSchema = z.object({
     content: z.string(),
   })).optional().default([]),
   documentId: z.string().uuid().optional(),
+  conversationId: z.string().uuid().optional(),
 })
+
+// Persist a completed user/assistant exchange to the conversation, auto-title it,
+// and trigger memory extraction — mirrors the non-streaming /api/ask behavior.
+async function persistConversationTurn(
+  conversation: { id: string; title: string | null },
+  userId: string,
+  query: string,
+  answer: string,
+  history: Array<{ role: 'user' | 'assistant'; content: string }>
+): Promise<void> {
+  await addMessage({ conversationId: conversation.id, role: 'user', content: query, tokenCount: 0 })
+  await addMessage({ conversationId: conversation.id, role: 'assistant', content: answer, tokenCount: 0 })
+
+  if (conversation.title === 'New Conversation') {
+    await updateConversationTitle(conversation.id, userId, query.slice(0, 50))
+  }
+
+  const aiBackendUrl = process.env.AI_BACKEND_URL ?? ''
+  fetch(`${aiBackendUrl}/memories/extract`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': process.env.AI_BACKEND_API_KEY ?? '',
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      messages: [
+        ...history,
+        { role: 'user', content: query },
+        { role: 'assistant', content: answer },
+      ],
+    }),
+  }).catch(() => { /* non-fatal */ })
+}
 
 async function streamHandler(
   req: NextRequest,
@@ -33,6 +70,30 @@ async function streamHandler(
   const body = context.parsedBody as z.infer<typeof AskSchema>
   const { userId } = context
   if (!userId) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  // Resolve the conversation up front: ownership is enforced here so a caller
+  // cannot write messages into another user's conversation.
+  const conversation = body.conversationId
+    ? await findConversationById(body.conversationId, userId)
+    : null
+  if (body.conversationId && !conversation) {
+    return NextResponse.json(
+      { error: 'NOT_FOUND', message: 'Conversation not found', requestId: context.requestId },
+      { status: 404 }
+    )
+  }
+
+  // DB history takes precedence over history in the request body — same as /api/ask
+  let effectiveHistory = body.history
+  if (conversation) {
+    const dbMessages = await getConversationMessages(conversation.id, 100)
+    if (dbMessages.length > 0) {
+      effectiveHistory = dbMessages.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }))
+    }
+  }
 
   const queryRecord = await queriesRepository.create({
     userId,
@@ -45,7 +106,7 @@ async function streamHandler(
     pythonStream = await backendClient.askStream(body.query, {
       topK: body.topK,
       strategy: body.strategy,
-      history: body.history,
+      history: effectiveHistory,
       traceId: context.requestId,
       userId,
       userEmail: context.email,
@@ -89,6 +150,15 @@ async function streamHandler(
             queriesRepository
               .updateAnswer(queryRecord.id, accumulatedAnswer, latencyMs, { traceId })
               .catch((err: unknown) => logError(err instanceof Error ? err : new Error(String(err))))
+            if (conversation) {
+              persistConversationTurn(
+                conversation,
+                userId,
+                body.query,
+                accumulatedAnswer,
+                effectiveHistory
+              ).catch((err: unknown) => logError(err instanceof Error ? err : new Error(String(err))))
+            }
           }
         } catch {
           // Malformed JSON event — pass through unchanged

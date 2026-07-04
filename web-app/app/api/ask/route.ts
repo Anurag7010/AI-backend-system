@@ -55,6 +55,18 @@ async function createHandler(
   const body = context.parsedBody as z.infer<typeof AskSchema>
   const { conversationId } = body
 
+  // Ownership check up front: a caller must not read history from or write
+  // messages into a conversation that belongs to another user.
+  const conversation = conversationId
+    ? await findConversationById(conversationId, userId)
+    : null
+  if (conversationId && !conversation) {
+    return NextResponse.json(
+      { error: 'NOT_FOUND', message: 'Conversation not found', requestId: context.requestId },
+      { status: 404 }
+    )
+  }
+
   // Load conversation history from DB if conversationId is provided
   let historyFromDB: Array<{ role: 'user' | 'assistant'; content: string }> = []
   if (conversationId) {
@@ -94,13 +106,12 @@ async function createHandler(
     )
 
     // Persist messages to conversation if conversationId was provided
-    if (conversationId) {
+    if (conversationId && conversation) {
       await addMessage({ conversationId, role: 'user', content: body.query, tokenCount: 0 })
       await addMessage({ conversationId, role: 'assistant', content: aiResponse.answer, tokenCount: 0 })
 
       // Auto-title: update if still default title
-      const conv = await findConversationById(conversationId, userId)
-      if (conv?.title === 'New Conversation') {
+      if (conversation.title === 'New Conversation') {
         await updateConversationTitle(conversationId, userId, body.query.slice(0, 50))
       }
 

@@ -83,7 +83,7 @@ export class AIService extends BaseService {
     query: string,
     history: Message[] = [],
     signal?: AbortSignal,
-    options?: { topK?: number; strategy?: string; documentId?: string }
+    options?: { topK?: number; strategy?: string; documentId?: string; conversationId?: string }
   ): AsyncGenerator<SSEEvent> {
     let response: Response
     try {
@@ -100,6 +100,7 @@ export class AIService extends BaseService {
           topK: options?.topK ?? 5,
           strategy: options?.strategy ?? 'semantic',
           ...(options?.documentId ? { documentId: options.documentId } : {}),
+          ...(options?.conversationId ? { conversationId: options.conversationId } : {}),
         }),
         signal,
       })

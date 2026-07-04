@@ -38,7 +38,19 @@ vi.mock('../../db', () => ({
   },
 }))
 
+// Mock conversation repositories — imported directly by the route for persistence
+vi.mock('../../db/repositories/messages', () => ({
+  addMessage: vi.fn(),
+  getConversationMessages: vi.fn(),
+}))
+vi.mock('../../db/repositories/conversations', () => ({
+  findConversationById: vi.fn(),
+  updateConversationTitle: vi.fn(),
+}))
+
 import * as db from '../../db'
+import * as messagesRepo from '../../db/repositories/messages'
+import * as conversationsRepo from '../../db/repositories/conversations'
 import { backendClient } from '../../lib/backend-client'
 import { POST } from '../../app/api/ask/stream/route'
 import { toUserId, toQueryId } from '@/types'
@@ -117,6 +129,8 @@ const MOCK_QUERY_RECORD: Query = {
   createdAt: new Date(),
 }
 
+const TEST_CONVERSATION_ID = '11111111-2222-4333-8444-555555555555'
+
 beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(queriesRepo.create).mockResolvedValue(MOCK_QUERY_RECORD)
@@ -125,6 +139,8 @@ beforeEach(() => {
     answerText: 'Hello world',
     latencyMs: 300,
   })
+  vi.mocked(messagesRepo.getConversationMessages).mockResolvedValue([])
+  vi.mocked(conversationsRepo.findConversationById).mockResolvedValue(null)
 })
 
 // ── POST /api/ask/stream ──────────────────────────────────────────────────────
@@ -271,6 +287,107 @@ describe('POST /api/ask/stream', () => {
       200,
       expect.objectContaining({ traceId: 't1' })
     )
+  })
+
+  it('returns 404 when conversationId does not belong to the user', async () => {
+    // Ownership gate: no stream starts, no query record is created
+    const res = await makeAuthRequest(POST, {
+      method: 'POST',
+      body: { query: 'What is this about?', conversationId: TEST_CONVERSATION_ID },
+    })
+
+    expect(res.status).toBe(404)
+    expect(backendClient.askStream).not.toHaveBeenCalled()
+    expect(queriesRepo.create).not.toHaveBeenCalled()
+  })
+
+  it('persists user and assistant messages to the conversation on done', async () => {
+    vi.mocked(conversationsRepo.findConversationById).mockResolvedValue({
+      id: TEST_CONVERSATION_ID,
+      userId: TEST_USER_ID,
+      title: 'New Conversation',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    mockAskStream.mockResolvedValue(
+      encodeSSE([
+        { type: 'token', content: 'Hello' },
+        { type: 'token', content: ' world' },
+        { type: 'done', trace_id: 't1', latency_ms: 200 },
+      ])
+    )
+
+    const res = await makeRawAuthRequest(POST, {
+      query: 'What is this about?',
+      conversationId: TEST_CONVERSATION_ID,
+    })
+    await readStreamText(res)
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(messagesRepo.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: TEST_CONVERSATION_ID, role: 'user', content: 'What is this about?' })
+    )
+    expect(messagesRepo.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: TEST_CONVERSATION_ID, role: 'assistant', content: 'Hello world' })
+    )
+    // Default title gets replaced with the first question
+    expect(conversationsRepo.updateConversationTitle).toHaveBeenCalledWith(
+      TEST_CONVERSATION_ID,
+      TEST_USER_ID,
+      'What is this about?'
+    )
+  })
+
+  it('prefers DB history over request-body history when conversation exists', async () => {
+    vi.mocked(conversationsRepo.findConversationById).mockResolvedValue({
+      id: TEST_CONVERSATION_ID,
+      userId: TEST_USER_ID,
+      title: 'Existing chat',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    vi.mocked(messagesRepo.getConversationMessages).mockResolvedValue([
+      { id: 'm1', conversationId: TEST_CONVERSATION_ID, role: 'user', content: 'Earlier question', tokenCount: 0, createdAt: new Date() },
+      { id: 'm2', conversationId: TEST_CONVERSATION_ID, role: 'assistant', content: 'Earlier answer', tokenCount: 0, createdAt: new Date() },
+    ])
+    mockAskStream.mockResolvedValue(
+      encodeSSE([{ type: 'done', trace_id: 't1', latency_ms: 50 }])
+    )
+
+    await makeAuthRequest(POST, {
+      method: 'POST',
+      body: {
+        query: 'Follow-up?',
+        conversationId: TEST_CONVERSATION_ID,
+        history: [{ role: 'user', content: 'client-side history should be ignored' }],
+      },
+    })
+
+    expect(backendClient.askStream).toHaveBeenCalledWith(
+      'Follow-up?',
+      expect.objectContaining({
+        history: [
+          { role: 'user', content: 'Earlier question' },
+          { role: 'assistant', content: 'Earlier answer' },
+        ],
+      })
+    )
+  })
+
+  it('does not touch conversation repositories when no conversationId is sent', async () => {
+    mockAskStream.mockResolvedValue(
+      encodeSSE([
+        { type: 'token', content: 'Hi' },
+        { type: 'done', trace_id: 't1', latency_ms: 50 },
+      ])
+    )
+
+    const res = await makeRawAuthRequest(POST, { query: 'What is this about?' })
+    await readStreamText(res)
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(messagesRepo.addMessage).not.toHaveBeenCalled()
+    expect(conversationsRepo.updateConversationTitle).not.toHaveBeenCalled()
   })
 
   it('returns 502 when backendClient.askStream throws before stream starts', async () => {
