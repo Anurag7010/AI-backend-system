@@ -178,7 +178,17 @@ Rules:
                 break
 
             if not response.choices:
-                raise ValueError("OpenAI returned empty choices array")
+                # Same treatment as a failed completions.create() call above —
+                # an empty choices array is a provider-side anomaly, not
+                # something retrying the same request differently would fix
+                # within this iteration. Fall through to the graceful fallback
+                # rather than raising.
+                log_pipeline_event(
+                    event="agent_llm_call_failed",
+                    trace_id=trace_id,
+                    metadata={"step": iteration, "error": "empty choices array"},
+                )
+                break
             message = response.choices[0].message
             finish_reason = response.choices[0].finish_reason
 
@@ -262,14 +272,29 @@ Rules:
             }
         )
 
-        final_response = await self.client.chat.completions.create(
-            model=self.model, messages=messages
-        )
-
-        final_answer = (
-            (final_response.choices[0].message.content if final_response.choices else None)
-            or "I was unable to complete this task within the allowed steps."
-        )
+        # This is the last resort — both the natural max_iterations exit above
+        # and every early `break` (a failed or malformed completions.create()
+        # call, or an empty choices array) funnel into this same call. If it
+        # also fails, there is nothing left to fall back to within this
+        # request, so this is the one call that must never let an exception
+        # escape: always return a real (if apologetic) answer, never a 500.
+        try:
+            final_response = await self.client.chat.completions.create(
+                model=self.model, messages=messages
+            )
+            final_answer = (
+                final_response.choices[0].message.content if final_response.choices else None
+            ) or "I was unable to complete this task within the allowed steps."
+        except Exception as exc:
+            log_pipeline_event(
+                event="agent_final_fallback_failed",
+                trace_id=trace_id,
+                metadata={"error": str(exc)},
+            )
+            final_answer = (
+                "I ran into a problem while working on this and could not complete it. "
+                "Please try rephrasing your question or asking again."
+            )
 
         return AgentResult(
             success=True,
