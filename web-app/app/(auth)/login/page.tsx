@@ -7,7 +7,11 @@
 import type { Metadata } from "next";
 import { LoginForm } from "./LoginForm";
 
-export const metadata: Metadata = { title: "Sign in" };
+export const metadata: Metadata = {
+  title: "Sign in",
+  description:
+    "Sign in to PrometheonAI — ask questions about your documents and get cited, grounded answers.",
+};
 
 export default function LoginPage() {
   // Server Component page — renders the Client Component form
