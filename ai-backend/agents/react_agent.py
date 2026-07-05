@@ -16,20 +16,23 @@ if TYPE_CHECKING:
 def _parse_tool_arguments(raw: Optional[str]) -> dict:
     """Parse a tool call's function.arguments into a dict — never raises.
 
-    Groq's function-calling occasionally emits an empty string (rather than
-    "{}") for zero-parameter tools, or malformed JSON under load — either
-    case previously crashed the whole agent run with an unhandled
-    json.JSONDecodeError before the tool's own error handling ever ran.
-    Falling back to {} lets pydantic validation (in BaseTool.execute) raise
-    the actual "missing required field" error instead, which the tool layer
-    already turns into a normal ToolResult failure.
+    Groq's function-calling is inconsistent for zero-parameter tools: it has
+    been observed sending an empty string, and also the literal string
+    "null" (valid JSON that decodes to Python None, not a JSONDecodeError) —
+    either one used to reach `InputSchema(**tool_input)` unguarded and crash
+    with "argument after ** must be a mapping, not NoneType", well outside
+    any tool's own try/except. Any non-dict parse (None, a list, a bare
+    string/number) falls back to {}, letting pydantic validation raise its
+    own "missing required field" error instead, which the tool layer already
+    turns into a normal ToolResult failure rather than an unhandled crash.
     """
     if not raw:
         return {}
     try:
-        return json.loads(raw)
+        parsed = json.loads(raw)
     except json.JSONDecodeError:
         return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 @dataclass
