@@ -197,3 +197,27 @@ async def test_agent_handles_tool_error_and_continues():
     assert result.stopped_reason == "final_answer"
     # Observation should contain the error message
     assert "tool broke" in result.steps[0].observation
+
+
+async def test_agent_respects_wall_clock_deadline():
+    """Once the wall-clock budget is spent, the loop stops immediately and the
+    agent returns the graceful summarising answer — never running to
+    max_iterations. This is what keeps a slow free-tier run from blowing past
+    the HTTP timeout and 500ing."""
+    registry = _make_mock_registry()
+    agent = ReActAgent(tool_registry=registry, max_iterations=8)
+
+    fallback = _openai_stop_response("Here is my best answer so far.")
+
+    # Deadline of -1s is exceeded on the very first check, so no reasoning
+    # iteration runs; only the single tools-less fallback call is made.
+    with patch("agents.react_agent.AGENT_DEADLINE_SECONDS", -1.0), \
+         patch.object(agent.client.chat.completions, "create", new=AsyncMock(
+             return_value=fallback
+         )) as mock_create:
+        result = await agent.run(query="do lots of slow work", user_id="u1")
+
+    assert result.success is True
+    assert result.answer == "Here is my best answer so far."
+    assert result.steps == []
+    assert mock_create.await_count == 1

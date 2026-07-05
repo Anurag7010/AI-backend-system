@@ -1,5 +1,6 @@
 # ai-backend/agents/react_agent.py
 import json
+import time
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 
@@ -11,6 +12,17 @@ from observability.logger import log_pipeline_event
 
 if TYPE_CHECKING:
     from core.user_tier import TierConfig
+
+# The agent runs behind an HTTP request with a hard ceiling (55s backend-client
+# timeout, 60s Vercel maxDuration on the free plan). A ReAct run makes up to
+# ~9 sequential LLM calls; on the free (Groq) tier under load these accumulate
+# past that ceiling, so the request was aborted into a 500 mid-run. These bounds
+# guarantee the agent instead returns a graceful answer well before the ceiling:
+#   worst case ≈ DEADLINE + one LLM_CALL_TIMEOUT + tool time + FINAL_CALL_TIMEOUT
+#             ≈ 25 + 10 + ~5 + 10 = ~50s  <  55s client  <  60s Vercel
+AGENT_DEADLINE_SECONDS = 25.0   # wall-clock budget for the reasoning loop
+LLM_CALL_TIMEOUT = 10.0         # per-call cap so one slow call can't blow the budget
+FINAL_CALL_TIMEOUT = 10.0       # cap on the last-resort summarising call
 
 
 def _parse_tool_arguments(raw: Optional[str]) -> dict:
@@ -145,7 +157,21 @@ Rules:
             metadata={"query_preview": query[:50], "max_iterations": self.max_iterations},
         )
 
+        start_monotonic = time.monotonic()
+
         for iteration in range(1, self.max_iterations + 1):
+            # Wall-clock guard: max_iterations alone doesn't bound runtime because
+            # each iteration's latency varies wildly on the free tier. Once the
+            # budget is spent, stop looping and go straight to the graceful
+            # summarising fallback so the request returns before the HTTP timeout.
+            if time.monotonic() - start_monotonic > AGENT_DEADLINE_SECONDS:
+                log_pipeline_event(
+                    event="agent_deadline_exceeded",
+                    trace_id=trace_id,
+                    metadata={"step": iteration, "elapsed_s": round(time.monotonic() - start_monotonic, 1)},
+                )
+                break
+
             step = AgentStep(
                 step_number=iteration,
                 thought=None,
@@ -160,6 +186,7 @@ Rules:
                     messages=messages,
                     tools=self.tools.all_schemas(),
                     tool_choice="auto",
+                    timeout=LLM_CALL_TIMEOUT,
                 )
             except Exception as exc:
                 # Groq's function-calling occasionally emits malformed tool-call
@@ -280,7 +307,7 @@ Rules:
         # escape: always return a real (if apologetic) answer, never a 500.
         try:
             final_response = await self.client.chat.completions.create(
-                model=self.model, messages=messages
+                model=self.model, messages=messages, timeout=FINAL_CALL_TIMEOUT
             )
             final_answer = (
                 final_response.choices[0].message.content if final_response.choices else None
