@@ -79,7 +79,10 @@ function Navbar() {
         paddingTop: scrolled ? 10 : 16,
         paddingBottom: scrolled ? 10 : 16,
         borderRadius: scrolled ? "0 0 16px 16px" : "0 0 24px 24px",
-        backgroundColor: scrolled ? "rgba(237,232,224,0.04)" : "#171B1F",
+        // Scrolled state must stay opaque enough to fully obscure page copy
+        // scrolling underneath it — 0.04 was near-invisible and let text
+        // (e.g. the manifesto paragraph) bleed through the pill, illegible.
+        backgroundColor: scrolled ? "rgba(23,27,31,0.82)" : "#171B1F",
         backdropFilter: scrolled ? "blur(12px)" : "none",
         transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
       }}
@@ -87,8 +90,8 @@ function Navbar() {
       {NAV_SCROLL_ITEMS.map((item) => (
         <a
           key={item}
-          href={`#${item.toLowerCase()}`}
-          className="text-[10px] sm:text-xs md:text-sm transition-colors duration-200"
+          href={`#${item.toLowerCase().replace(/\s+/g, "-")}`}
+          className="hidden sm:inline-block text-[10px] sm:text-xs md:text-sm transition-colors duration-200"
           style={{ color: "rgba(237, 232, 224, 0.7)" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#EDE8E0")}
           onMouseLeave={(e) =>
@@ -100,7 +103,7 @@ function Navbar() {
       ))}
       <Link
         href="/chat"
-        className="text-[10px] sm:text-xs md:text-sm transition-colors duration-200"
+        className="hidden sm:inline-block text-[10px] sm:text-xs md:text-sm transition-colors duration-200"
         style={{ color: "rgba(237, 232, 224, 0.7)" }}
         onMouseEnter={(e) => (e.currentTarget.style.color = "#EDE8E0")}
         onMouseLeave={(e) =>
@@ -461,7 +464,7 @@ function FeatureCard({
 function FeaturesSection() {
   return (
     <section
-      id="capabilities"
+      id="how-it-works"
       className="bg-forge-dark py-16 md:py-24 px-6 relative"
     >
       <div className="absolute inset-0 bg-noise opacity-[0.15] pointer-events-none" />
