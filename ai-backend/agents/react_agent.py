@@ -154,12 +154,28 @@ Rules:
                 observation=None,
             )
 
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                tools=self.tools.all_schemas(),
-                tool_choice="auto",
-            )
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    tools=self.tools.all_schemas(),
+                    tool_choice="auto",
+                )
+            except Exception as exc:
+                # Groq's function-calling occasionally emits malformed tool-call
+                # syntax as plain text (e.g. "<function=search_documents {...}"),
+                # which Groq's own API then rejects with its own 400
+                # tool_use_failed error — raised here, outside any tool's error
+                # handling, and previously crashed the whole request. `messages`
+                # is untouched at this point (nothing malformed was appended),
+                # so falling through to the same tools-less "best answer so far"
+                # completion used for max_iterations below is always safe.
+                log_pipeline_event(
+                    event="agent_llm_call_failed",
+                    trace_id=trace_id,
+                    metadata={"step": iteration, "error": str(exc)},
+                )
+                break
 
             if not response.choices:
                 raise ValueError("OpenAI returned empty choices array")
