@@ -36,10 +36,15 @@ function SplitText({ text, color, shadow = TITLE_SHADOW }: SplitTextProps) {
   );
 }
 
+// Lower bound must stay small: several rows place two words side-by-side
+// (e.g. "Forge" + "Never", "Oracle" + "Always") sharing one 10-column-wide
+// grid row. At >=720px, 10vw already exceeds 4.5rem so this floor never
+// engages — desktop is unaffected. Below that, a 4.5rem floor forced both
+// words to a width wider than the mobile viewport, so they overlapped.
 const TITLE_CSS: React.CSSProperties = {
   textTransform: "uppercase",
   lineHeight: 0.85,
-  fontSize: "clamp(4.5rem, 10vw, 9rem)",
+  fontSize: "clamp(2.25rem, 10vw, 9rem)",
   fontWeight: 400,
   letterSpacing: "-0.02em",
 };
