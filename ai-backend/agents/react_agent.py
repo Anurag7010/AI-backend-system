@@ -13,6 +13,25 @@ if TYPE_CHECKING:
     from core.user_tier import TierConfig
 
 
+def _parse_tool_arguments(raw: Optional[str]) -> dict:
+    """Parse a tool call's function.arguments into a dict — never raises.
+
+    Groq's function-calling occasionally emits an empty string (rather than
+    "{}") for zero-parameter tools, or malformed JSON under load — either
+    case previously crashed the whole agent run with an unhandled
+    json.JSONDecodeError before the tool's own error handling ever ran.
+    Falling back to {} lets pydantic validation (in BaseTool.execute) raise
+    the actual "missing required field" error instead, which the tool layer
+    already turns into a normal ToolResult failure.
+    """
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+
+
 @dataclass
 class AgentStep:
     """Represents one step in the agent's reasoning trace."""
@@ -153,7 +172,7 @@ Rules:
                 last_observation = ""
                 for tool_call in message.tool_calls:
                     tool_name = tool_call.function.name
-                    tool_input = json.loads(tool_call.function.arguments)
+                    tool_input = _parse_tool_arguments(tool_call.function.arguments)
 
                     log_pipeline_event(
                         event="agent_tool_call",
@@ -187,7 +206,7 @@ Rules:
                 # Record the primary (first) tool call for the step trace
                 primary = message.tool_calls[0]
                 step.action = primary.function.name
-                step.action_input = json.loads(primary.function.arguments)
+                step.action_input = _parse_tool_arguments(primary.function.arguments)
                 step.observation = last_observation
 
                 steps.append(step)
